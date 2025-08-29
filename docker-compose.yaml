@@ -1,0 +1,82 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    working_dir: /app
+    restart: always
+    command: bash
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8000"]
+      interval: 1s
+      timeout: 1s
+      retries: 15
+    develop:
+      watch:
+        - action: rebuild
+          path: uv.lock
+        - action: rebuild
+          path: Dockerfile
+        - action: rebuild
+          path: dev.Dockerfile
+        - action: sync+restart
+          path: app/
+          target: /app/app
+
+  app_test:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    command: >
+      bash -c "
+        set -e
+
+        # Run Ruff to check code style
+        uv run ruff check .
+
+        # Check formatting with Ruff
+        uv run ruff format --check --diff .
+
+        # Run tests with pytest
+        uv run pytest
+      "
+    env_file:
+      - .env
+
+  bash:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    command: bash
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+
+  format:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    command: >
+      bash -c "
+        set -e
+        # Run Ruff to fix code style
+        uv run ruff check . --fix --fix-only --show-fixes
+
+        # Run Ruff to format code
+        uv run ruff format .
+      "
+    env_file:
+      - .env
+
+  bandit:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    command: bash -c "uv run bandit -c pyproject.toml -r ."
+    env_file:
+      - .env
