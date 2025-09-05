@@ -127,3 +127,53 @@ class ZitiClient(BaseAPIClient):
 
     def identities(self) -> AsyncGenerator[dict[str, Any], None]:
         return self.collection_iterator("/identities")
+
+    def list_identities(self, filter_expr: str) -> AsyncGenerator[dict[str, Any], None]:
+        return self.collection_iterator(
+            "/edge/management/v1/identities",
+            params={
+                "filter": filter_expr,
+            },
+        )
+
+    def list_edge_router_policies(self, filter_expr: str) -> AsyncGenerator[dict[str, Any], None]:
+        return self.collection_iterator(
+            "/edge/management/v1/edge-routers-policies",
+            params={
+                "filter": filter_expr,
+            },
+        )
+
+    async def create_edge_router_policy(self, name: str, z_id: str) -> dict[str, Any]:
+        return await self.create(
+            f"{self.base_url}/edge/management/v1/config-types",
+            data={
+                "name": name,
+                "identityRoles": [f"@{z_id}"],
+                "edgeRouterRoles": ["#all"],
+                "semantic": "AllOf",
+                "tags": {
+                    "zrok": "v1.1.x [developer build]",
+                },
+            },
+        )
+
+    def list_config_types(self, filter_expr: str) -> AsyncGenerator[dict[str, Any], None]:
+        return self.collection_iterator(
+            "/edge/management/v1/config-types",
+            params={
+                "filter": filter_expr,
+            },
+        )
+
+    async def create_config_type(self, name: str) -> dict[str, Any]:
+        return await self.create(
+            f"{self.base_url}/edge/management/v1/config-types",
+            data={
+                "name": name,
+                "schema": {},
+                "tags": {
+                    "zrok": "v1.1.x [developer build]",
+                },
+            },
+        )

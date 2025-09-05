@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from functools import cached_property
 from types import TracebackType
-from typing import ClassVar, Self
+from typing import Any, ClassVar, Self
 
 import httpx
 
@@ -75,6 +75,12 @@ class BaseAPIClient(ABC):
                 break
 
             params["offset"] = params["offset"] + self.limit
+
+    async def create(self, endpoint: str, data: dict) -> dict[str, Any]:
+        response = await self.httpx_client.post(endpoint, json=data)
+        response.raise_for_status()
+
+        return response.json()["data"]
 
     async def __aenter__(self) -> Self:
         await self.httpx_client.__aenter__()

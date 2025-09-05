@@ -1,5 +1,4 @@
 import pathlib
-from urllib.parse import quote
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,12 +7,12 @@ PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 
 class Settings(BaseSettings):
     """
-    This class store the Operations API settings.
+    This class stores the Operations API settings.
     """
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
-        env_prefix="MROK_",
+        env_prefix="mrok_",
         extra="ignore",
     )
 
@@ -23,8 +22,6 @@ class Settings(BaseSettings):
     ziti_password: str | None = None
     ziti_identity: str | None = None
     api_client_read_timeout_seconds: float = 30
-
-
 
 
 _settings = None

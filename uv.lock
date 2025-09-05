@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12, <4"
 
 [[package]]
@@ -402,11 +402,13 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
+    { name = "openziti" },
     { name = "pydantic-settings" },
     { name = "pyfiglet" },
     { name = "rich" },
     { name = "sqlmodel" },
     { name = "typer" },
+    { name = "zrok" },
 ]
 
 [package.dev-dependencies]
@@ -420,11 +422,13 @@ dev = [
 requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1,<0.117.0" },
     { name = "httpx", specifier = ">=0.28.1,<0.29.0" },
+    { name = "openziti", specifier = ">=1.3.1,<1.4.0" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3.0.0" },
     { name = "pyfiglet", specifier = ">=1.0.4,<2.0.0" },
     { name = "rich", specifier = ">=14.1.0,<15.0.0" },
     { name = "sqlmodel", specifier = ">=0.0.24,<0.0.25" },
     { name = "typer", specifier = ">=0.16.1,<0.17.0" },
+    { name = "zrok", specifier = ">=1.1.3" },
 ]
 
 [package.metadata.requires-dev]
@@ -474,6 +478,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
 ]
+
+[[package]]
+name = "openziti"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/4e/a1ef6d1b617e2f9f58f704fcaeaeb234ec5493549974c3842eb898b80cf0/openziti-1.3.1.tar.gz", hash = "sha256:49f59663d9e15af4656911cc10675357885c030348911ec82918b4d576a9e09b", size = 37042, upload-time = "2025-08-22T15:53:08.378Z" }
 
 [[package]]
 name = "parso"
@@ -1075,4 +1085,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/86/eb/20b6cdf273913d0ad05a6a14aed4b9a85591c18a987a3d47f20fa13dcc47/websockets-15.0.1-cp313-cp313-win32.whl", hash = "sha256:ba9e56e8ceeeedb2e080147ba85ffcd5cd0711b89576b83784d8605a7df455fa", size = 176393, upload-time = "2025-03-05T20:02:53.814Z" },
     { url = "https://files.pythonhosted.org/packages/1b/6c/c65773d6cab416a64d191d6ee8a8b1c68a09970ea6909d16965d26bfed1e/websockets-15.0.1-cp313-cp313-win_amd64.whl", hash = "sha256:e09473f095a819042ecb2ab9465aee615bd9c2028e4ef7d933600a8401c79561", size = 176837, upload-time = "2025-03-05T20:02:55.237Z" },
     { url = "https://files.pythonhosted.org/packages/fa/a8/5b41e0da817d64113292ab1f8247140aac61cbf6cfd085d6a0fa77f4984f/websockets-15.0.1-py3-none-any.whl", hash = "sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f", size = 169743, upload-time = "2025-03-05T20:03:39.41Z" },
+]
+
+[[package]]
+name = "zrok"
+version = "1.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "openziti" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5c/36/e498ac3b0ec2432db142b7bb13c9e62789904b36c544f3a460a337478e18/zrok-1.1.3.tar.gz", hash = "sha256:482c675e405691982839ff7efd1558ff86fc706faa9912db484e176b11ed4d3b", size = 87397, upload-time = "2025-08-20T18:36:22.392Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/a6/de395b66bf5036488681cf4bdbfca907b0b62b8f815db2762ec85cb5d0d3/zrok-1.1.3-py3-none-any.whl", hash = "sha256:85c4376d9a312ec9794293b502ac5ffef56a665411a24fd51582b3c753183455", size = 197991, upload-time = "2025-08-20T18:36:21.185Z" },
 ]
