@@ -1,0 +1,7 @@
+ziti:
+  url: https://zitictrl.example.com
+  read_timeout: 30
+  auth:
+    username: admin
+  # auth:
+  #   identity: path_to_identity_json_file
