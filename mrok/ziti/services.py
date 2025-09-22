@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from mrok.conf import get_settings
+from mrok.conf import Settings
 from mrok.ziti.api import TagsType, ZitiManagementAPI
 from mrok.ziti.errors import (
     ConfigTypeNotFoundError,
@@ -13,11 +13,11 @@ from mrok.ziti.errors import (
 logger = logging.getLogger(__name__)
 
 
-async def register_service(extension_id: str, tags: TagsType | None) -> dict[str, Any]:
+async def register_service(
+    settings: Settings, mgmt_api: ZitiManagementAPI, extension_id: str, tags: TagsType | None
+) -> dict[str, Any]:
     extension_id = extension_id.lower()
     registered = False
-    settings = get_settings()
-    mgmt_api = ZitiManagementAPI(settings)
     proxy_identity = await mgmt_api.search_identity(settings.proxy.identity)
     if not proxy_identity:
         raise ProxyIdentityNotFoundError(
@@ -46,7 +46,10 @@ async def register_service(extension_id: str, tags: TagsType | None) -> dict[str
     dial_service_policy = await mgmt_api.search_service_policy(service_policy_name)
     if not dial_service_policy:
         await mgmt_api.create_dial_service_policy(
-            service_policy_name, service_id, proxy_identity_id, tags=tags,
+            service_policy_name,
+            service_id,
+            proxy_identity_id,
+            tags=tags,
         )
         registered = True
 
@@ -58,9 +61,10 @@ async def register_service(extension_id: str, tags: TagsType | None) -> dict[str
         raise ServiceAlreadyRegisteredError(f"Extension `{extension_id}` already registered.")
     return service
 
-async def unregister_service(extension_id: str) -> None:
-    settings = get_settings()
-    mgmt_api = ZitiManagementAPI(settings)
+
+async def unregister_service(
+    settings: Settings, mgmt_api: ZitiManagementAPI, extension_id: str
+) -> None:
     service = await mgmt_api.search_service(extension_id)
     if not service:
         raise ServiceNotFoundError(f"Extension `{extension_id}` not found.")
@@ -82,7 +86,7 @@ async def unregister_service(extension_id: str) -> None:
     await mgmt_api.delete_service(service["id"])
 
 
-async def get_service(id_or_extension_id: str) -> dict[str, Any] | None:
-    settings = get_settings()
-    mgmt_api = ZitiManagementAPI(settings)
+async def get_service(
+    mgmt_api: ZitiManagementAPI, id_or_extension_id: str
+) -> dict[str, Any] | None:
     return await mgmt_api.search_service(id_or_extension_id)

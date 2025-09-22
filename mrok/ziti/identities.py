@@ -102,5 +102,5 @@ def _generate_identity_json(
             "cert": f"pem:{certificate_pem}",
             "ca": f"pem:{ca_pem}",
         },
-        "enableHa": False
+        "enableHa": False,
     }

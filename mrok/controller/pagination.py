@@ -4,10 +4,12 @@ from collections.abc import Sequence
 from typing import Any
 
 from fastapi import Query
+from fastapi_pagination import create_page, resolve_params
 from fastapi_pagination.bases import AbstractPage, AbstractParams, RawParams
 from pydantic import BaseModel, Field
 
 from mrok.controller.schemas import BaseSchema
+from mrok.ziti.api import BaseZitiAPI
 
 
 class MetaPagination(BaseModel):
@@ -15,8 +17,10 @@ class MetaPagination(BaseModel):
     offset: int
     total: int
 
+
 class Meta(BaseModel):
     pagination: MetaPagination
+
 
 class LimitOffsetParams(BaseModel, AbstractParams):
     limit: int = Query(50, ge=0, le=1000, description="Page size limit")
@@ -35,7 +39,6 @@ class LimitOffsetPage[S: BaseSchema](AbstractPage[S]):
 
     __params_type__ = LimitOffsetParams  # type: ignore
 
-
     @classmethod
     def create(
         cls,
@@ -45,7 +48,8 @@ class LimitOffsetPage[S: BaseSchema](AbstractPage[S]):
         total: int | None = None,
         **kwargs: Any,
     ) -> LimitOffsetPage[S]:
-        assert isinstance(params, LimitOffsetParams)
+        if not isinstance(params, LimitOffsetParams):
+            raise TypeError("params must be of type LimitOffsetParams")
         return cls(  # type: ignore
             data=items,
             meta=Meta(
@@ -56,3 +60,19 @@ class LimitOffsetPage[S: BaseSchema](AbstractPage[S]):
                 )
             ),
         )
+
+
+async def paginate[S: BaseSchema](
+    api: BaseZitiAPI,
+    endpoint: str,
+    schema_cls: type[S],
+) -> AbstractPage[S]:
+    params: LimitOffsetParams = resolve_params()
+    page = await api.get_page(endpoint, params.limit, params.offset)
+    pagination_meta = page["meta"]["pagination"]
+    total = pagination_meta["totalCount"]
+    return create_page(
+        [schema_cls(**item) for item in page["data"]],
+        params=params,
+        total=total,
+    )

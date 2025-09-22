@@ -20,16 +20,13 @@ async def get_ca_certificates(mgmt_api: ZitiManagementAPI) -> str:
         ca_certificates = []
         for cert in pkcs7_certs:
             cert_pem = cert.public_bytes(serialization.Encoding.PEM)
-            ca_certificates.append(cert_pem.decode('utf-8'))
-        _ca_certificates = '\n'.join(ca_certificates)
+            ca_certificates.append(cert_pem.decode("utf-8"))
+        _ca_certificates = "\n".join(ca_certificates)
     return _ca_certificates
 
 
 def generate_key_and_csr(identity_id: str, key_size: int = 4096) -> tuple[str, str]:
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=key_size
-    )
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size)
     subject = x509.Name(
         [
             x509.NameAttribute(NameOID.COUNTRY_NAME, "CH"),

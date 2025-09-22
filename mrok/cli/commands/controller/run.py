@@ -34,6 +34,7 @@ class StandaloneApplication(BaseApplication):  # pragma: no cover
 
 default_workers = number_of_workers()
 
+
 def register(app: typer.Typer) -> None:
     @app.command("run")
     def run_controller(

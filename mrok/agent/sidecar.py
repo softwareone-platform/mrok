@@ -284,7 +284,7 @@ class ZitiTunnel:
         try:
             if hasattr(self, "_ziti_sock"):
                 self._ziti_sock.close()
-        except Exception:
+        finally:
             pass
 
         # Wait for tunnel thread to finish

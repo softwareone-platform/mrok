@@ -24,7 +24,6 @@ tags_metadata = [
 ]
 
 
-
 def setup_custom_serialization(router: APIRouter):
     for api_route in router.routes:
         if (
@@ -45,7 +44,6 @@ def setup_app():
         root_path="/public/v1",
     )
     fastapi_pagination.add_pagination(app)
-
 
     setup_custom_serialization(extensions_router)
 

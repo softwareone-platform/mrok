@@ -18,11 +18,11 @@ def validate_extension_id(extension_id: str):
     return extension_id
 
 
-def register(app:typer.Typer) -> None:
+def register(app: typer.Typer) -> None:
     @app.command("instance")
     def create_instance(
         ctx: typer.Context,
-        extension_id: str =  typer.Argument(
+        extension_id: str = typer.Argument(
             ..., callback=validate_extension_id, help="Extension ID in format EXT-xxxx-yyyy"
         ),
         instance_uuid: str = typer.Argument(..., help="Instance UUID"),
@@ -40,9 +40,7 @@ def register(app:typer.Typer) -> None:
         ] = None,
     ):
         """Register a new Extension Instance in OpenZiti (identity)."""
-        identity = asyncio.run(
-            enroll_instance_identity(extension_id.lower(), instance_uuid)
-        )
+        identity = asyncio.run(enroll_instance_identity(extension_id.lower(), instance_uuid))
         if output:
             json.dump(identity, output.open("w"))
         else:
