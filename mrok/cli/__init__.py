@@ -1,14 +1,15 @@
 import inspect
+import sys
 
 import typer
 from pyfiglet import Figlet
-from rich.console import Console
 from rich.text import Text
+from typer.core import TyperGroup
 
-from app import commands
-from app.conf import get_settings
-# from app.db.base import configure_db_engine
-# from app.logging import setup_logging
+from mrok.cli import commands
+from mrok.cli.logging import setup_logging
+from mrok.cli.rich import get_console
+from mrok.conf import get_settings
 
 
 def gradient(start_hex, end_hex, num_samples=10):  # pragma: no cover
@@ -27,7 +28,7 @@ def gradient(start_hex, end_hex, num_samples=10):  # pragma: no cover
 
 
 def show_banner():  # pragma: no cover
-    program_name = "mrokctrl"
+    program_name = "mrok"
     figlet = Figlet("georgia11")
 
     banner_text = figlet.renderText(program_name)
@@ -39,7 +40,7 @@ def show_banner():  # pragma: no cover
     colors = gradient("#00C9CD", "#472AFF", half_length) + gradient(
         "#472AFF", "#392D9C", half_length + 1
     )
-    console = Console()
+    console = get_console()
 
     for line in banner_lines:
         colored_line = Text()
@@ -50,12 +51,24 @@ def show_banner():  # pragma: no cover
         console.print(colored_line)
 
 
+class MrokGroup(TyperGroup):
+    def get_help(self, ctx):
+        show_banner()
+        return super().get_help(ctx)
+
+    def invoke(self, ctx):
+        show_banner()
+        return super().invoke(ctx)
+
+
 app = typer.Typer(
-    help="MPT zrok controller CLI",
-    add_completion=False,
+    help="SoftwareOne Marketplace Extension Channel CLI",
+    add_completion=True,
     rich_markup_mode="rich",
+    cls=MrokGroup,
 )
 
+err_console = get_console(stderr=True)
 
 for name, module in inspect.getmembers(commands):
     if not inspect.ismodule(module):
@@ -63,12 +76,22 @@ for name, module in inspect.getmembers(commands):
 
     if hasattr(module, "command"):
         app.command(name=name.replace("_", "-"))(module.command)
+    elif hasattr(module, "app"):
+        app.add_typer(module.app, name=name.replace("_", "-"))
 
 
 @app.callback()
 def main(
     ctx: typer.Context,
 ):
-    show_banner()
     settings = get_settings()
+    setup_logging(settings)
     ctx.obj = settings
+
+
+def run():
+    try:
+        app()
+    except Exception as e:
+        err_console.print(f"[bold red]Error:[/bold red] {e}")
+        sys.exit(-1)

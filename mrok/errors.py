@@ -1,0 +1,2 @@
+class MrokError(Exception):
+    pass

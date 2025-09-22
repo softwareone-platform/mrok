@@ -187,3 +187,7 @@ taplo.toml
 
 .identity
 .ziti-home
+
+# Ignore dynaconf secret files
+.secrets.*
+settings.yaml

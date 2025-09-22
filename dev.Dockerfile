@@ -1,22 +1,16 @@
 FROM python:3.12
 
 # The uv installer requires curl (and certificates) to download the release archive
-RUN apt-get update; \
+RUN apt-get clean -y; \
+    apt-get update; \
     apt-get install -y --no-install-recommends ca-certificates curl vim postgresql-client netcat-openbsd; \
     apt-get autoremove --purge -y; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 RUN curl -sSf https://get.openziti.io/install.bash | bash -s openziti-controller openziti-router zrok
-
-
-
-
-# Download the latest installer
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-
 # Run the uv installer then remove it
-RUN sh /uv-installer.sh && rm /uv-installer.sh
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.local/bin/:$PATH"
