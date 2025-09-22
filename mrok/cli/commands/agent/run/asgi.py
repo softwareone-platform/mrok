@@ -11,20 +11,25 @@ from mrok.agent import ziticorn
 def number_of_workers():
     return (multiprocessing.cpu_count() * 2) + 1
 
+
 default_workers = number_of_workers()
+
 
 def register(app: typer.Typer) -> None:
     @app.command("asgi")
     def run_asgi(
         ctx: typer.Context,
-        app: str =  typer.Argument(
-            ..., help="ASGI application",
+        app: str = typer.Argument(
+            ...,
+            help="ASGI application",
         ),
         extension_id: str = typer.Argument(
-            ..., help="Extension ID",
+            ...,
+            help="Extension ID",
         ),
         identity_file: Path = typer.Argument(
-            ..., help="Identity json file",
+            ...,
+            help="Identity json file",
         ),
         workers: Annotated[
             int,

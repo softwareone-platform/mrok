@@ -18,8 +18,10 @@ class BaseSchema(BaseModel):
 class IdSchema(BaseModel):
     id: str
 
+
 class ExtensionIdSchema(BaseModel):
     id: Annotated[str, Field(pattern=r"EXT-\d{4}-\d{4}")]
+
 
 # For instance
 class InstanceIdSchema(BaseModel):

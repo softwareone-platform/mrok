@@ -73,7 +73,6 @@ class Master:
         for _ in range(self.config.workers):
             self.start_worker_process(self.config, self.service_name, self.identity_file)
 
-
     def start_worker_process(self, config, service_name, identity_file):
         p = start_process(
             start_server,

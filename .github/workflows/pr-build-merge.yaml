@@ -1,0 +1,107 @@
+name: PR build and merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - release/*
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install uv and set up its cache
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install the project dependancies
+        run: uv sync --all-extras --dev
+
+      - name: Run formatting checks
+        run: uv run ruff format --check --diff .
+
+      - name: Run linting
+        run: uv run ruff check .
+
+      - name: Run security checks
+        run: uv run bandit -c pyproject.toml -r . -f json -o bandit.json
+
+      - name: Run tests
+        run: uv run pytest
+      - name: Compute added/removed lines for notification
+        if: ${{ github.event_name == 'pull_request' }}
+        id: diff
+        run: |
+          PR_DATA=$(gh pr view "${{ github.event.pull_request.number }}" --json additions,deletions -q '.')
+          ADDITIONS=$(echo "$PR_DATA" | jq '.additions')
+          DELETIONS=$(echo "$PR_DATA" | jq '.deletions')
+          echo "additions=$ADDITIONS" >> $GITHUB_OUTPUT
+          echo "deletions=$DELETIONS" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Notify Microsoft Teams
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: softwareone-platform/notify-pr-teams-action@v4
+        with:
+          webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          bot_image_url: https://raw.githubusercontent.com/softwareone-platform/mrok/main/.github/workflows/assets/turing_team_pr_bot.png
+          repo: ${{ github.repository }}
+          pr_url: ${{ github.event.pull_request.html_url }}
+          pr_title: ${{ github.event.pull_request.title }}
+          pr_author: ${{ github.event.pull_request.user.login }}
+          head_ref: ${{ github.event.pull_request.head.ref }}
+          base_ref: ${{ github.event.pull_request.base.ref }}
+          commits: ${{ github.event.pull_request.commits }}
+          changed_files: ${{ github.event.pull_request.changed_files }}
+          additions: ${{ steps.diff.outputs.additions }}
+          deletions: ${{ steps.diff.outputs.deletions }}
+          pr_number: ${{ github.event.pull_request.number }}
+          pr_status: ${{ github.event.pull_request.state }}
+          is_merged: ${{ github.event.pull_request.merged }}
+
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Save code coverage report in the artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov
+          retention-days: 10
+
+      - name: Generate openapi.json
+        run: uv run mrok controller openapi -f json -o openapi.json
+
+      - name: Save openapi.json the artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.json
+          retention-days: 10

@@ -3,8 +3,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, status
 
+from mrok.controller.dependencies import AppSettings, ZitiManagementAPI
 from mrok.controller.openapi import examples
-from mrok.controller.pagination import LimitOffsetPage
+from mrok.controller.pagination import LimitOffsetPage, paginate
 from mrok.controller.schemas import ExtensionCreate, ExtensionRead, InstanceCreate, InstanceRead
 from mrok.ziti.errors import (
     ConfigTypeNotFoundError,
@@ -17,6 +18,7 @@ from mrok.ziti.services import get_service, register_service, unregister_service
 logger = logging.getLogger("mrok.controller")
 
 router = APIRouter()
+
 
 @router.post(
     "",
@@ -32,10 +34,11 @@ router = APIRouter()
         },
     },
     status_code=status.HTTP_201_CREATED,
-    dependencies=[],
     tags=["Extensions"],
 )
 async def create_extension(
+    settings: AppSettings,
+    mgmt_api: ZitiManagementAPI,
     data: Annotated[
         ExtensionCreate,
         Body(
@@ -45,9 +48,7 @@ async def create_extension(
                     "description": ("Create a new Extension."),
                     "value": {
                         "extension": {"id": "EXT-1234-5678"},
-                        "tags": {
-                            "account": "ACC-5555-3333"
-                        }
+                        "tags": {"account": "ACC-5555-3333"},
                     },
                 }
             }
@@ -55,7 +56,7 @@ async def create_extension(
     ],
 ):
     try:
-        service = await register_service(data.extension.id, data.tags)
+        service = await register_service(settings, mgmt_api, data.extension.id, data.tags)
         logger.info(f"service: {service}")
         return ExtensionRead(
             id=service["id"],
@@ -87,9 +88,10 @@ async def create_extension(
     tags=["Extensions"],
 )
 async def get_extension_by_id_or_extension_id(
+    mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
 ):
-    service = await get_service(id_or_extension_id)
+    service = await get_service(mgmt_api, id_or_extension_id)
     if not service:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -103,14 +105,17 @@ async def get_extension_by_id_or_extension_id(
     tags=["Extensions"],
 )
 async def delete_instance_by_id_or_extension_id(
+    settings: AppSettings,
+    mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
 ):
     try:
-        await unregister_service(id_or_extension_id)
+        await unregister_service(settings, mgmt_api, id_or_extension_id)
     except ServiceNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
+
 
 @router.get(
     "",
@@ -134,11 +139,12 @@ async def delete_instance_by_id_or_extension_id(
             },
         },
     },
-    dependencies=[],
     tags=["Extensions"],
 )
-async def get_extensions():
-    pass
+async def get_extensions(
+    mgmt_api: ZitiManagementAPI,
+):
+    return await paginate(mgmt_api, "/services", ExtensionRead)
 
 
 @router.post(
@@ -168,9 +174,7 @@ async def create_extension_instances(
                     "description": ("Create a new Instance of an Extension."),
                     "value": {
                         "instance": {"id": "INS-1234-5678-0001"},
-                        "tags": {
-                            "account": "ACC-5555-3333"
-                        }
+                        "tags": {"account": "ACC-5555-3333"},
                     },
                 }
             }
@@ -228,6 +232,7 @@ async def get_instance_by_id_or_instance_id(
     id_or_instance_id: str,
 ):
     pass
+
 
 @router.delete(
     "/{id_or_extension_id}/instances/{id_or_instance_id}",

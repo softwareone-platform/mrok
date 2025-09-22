@@ -27,8 +27,16 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "bandit>=1.8.6,<2.0.0",
     "ipython>=9.4.0,<10.0.0",
     "mypy>=1.17.1,<2.0.0",
+    "pre-commit>=4.3.0,<5.0.0",
+    "pytest>=8.4.2,<9.0.0",
+    "pytest-asyncio>=1.2.0,<2.0.0",
+    "pytest-cov>=7.0.0,<8.0.0",
+    "pytest-httpx>=0.35.0,<0.36.0",
+    "pytest-mock>=3.15.1,<4.0.0",
+    "pytest-randomly>=4.0.1,<5.0.0",
     "ruff>=0.12.11,<0.13.0",
     "types-pyyaml>=6.0.12.20250915,<7.0.0.0",
 ]
@@ -86,3 +94,32 @@ warn_no_return = false
 ignore_missing_imports = true
 cache_dir = ".cache/mypy"
 plugins = ["pydantic.mypy"]
+
+
+[tool.bandit]
+targets = ["mrok"]
+exclude_dirs = ["tests", ".venv", "ziti-sdk-py"]
+
+[tool.pytest.ini_options]
+testpaths = "tests/"
+pythonpath = "."
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+addopts = "--cov=mrok --cov-report=term-missing --cov-report=html --cov-report=xml"
+cache_dir = ".cache/pytest"
+markers = """
+    fixed_random_seed: Set the randomly_seed to a fixed value to tests using random values deterministic
+"""
+
+[tool.coverage.run]
+branch = true
+source = ["mrok"]
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no branch",
+    "NotImplementedError",
+]

@@ -45,7 +45,7 @@ class BaseZitiAPI(ABC):
     def __init__(self, settings: Settings):
         self.settings = settings
         self.limit = 50
-        self.token = ""
+        self.token = None
 
     @property
     @abstractmethod
@@ -62,7 +62,7 @@ class BaseZitiAPI(ABC):
         return httpx.AsyncClient(
             base_url=self.base_url,
             auth=self.auth,
-            verify=False,
+            verify=self.settings.ziti.ssl_verify,
             timeout=httpx.Timeout(
                 connect=0.25,
                 read=self.settings.ziti.read_timeout,
@@ -70,6 +70,7 @@ class BaseZitiAPI(ABC):
                 pool=5.0,
             ),
         )
+
     async def create(self, endpoint: str, payload: dict[str, Any], tags: TagsType | None) -> str:
         payload["tags"] = self._merge_tags(tags)
         response: httpx.Response = await self.httpx_client.post(
@@ -93,8 +94,7 @@ class BaseZitiAPI(ABC):
 
     async def search_by_id_or_name(self, endpoint: str, id_or_name: str) -> dict[str, Any] | None:
         query = (
-            f'(id="{id_or_name}" or name="{id_or_name.lower()}") '
-            f'and tags.{OWNER_TAG_NAME} != null'
+            f'(id="{id_or_name}" or name="{id_or_name.lower()}") and tags.{OWNER_TAG_NAME} != null'
         )
         response = await self.httpx_client.get(
             endpoint,
@@ -107,17 +107,23 @@ class BaseZitiAPI(ABC):
         if response_data["meta"]["pagination"]["totalCount"] == 1:
             return response_data["data"][0]
 
+    async def get_page(
+        self, endpoint: str, limit: int, offset: int, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        params = params or {}
+        params["limit"] = limit
+        params["offset"] = offset
+        page_response = await self.httpx_client.get(endpoint, params=params)
+        page_response.raise_for_status()
+        page = page_response.json()
+        return page
+
     async def collection_iterator(
         self, endpoint: str, params: dict[str, Any] | None = None
     ) -> AsyncGenerator[dict, None]:
-        params = params or {}
-        params["limit"] = self.limit
-        params["offset"] = 0
+        offset = 0
         while True:
-            page_response = await self.httpx_client.get(endpoint, params=params)
-            page_response.raise_for_status()
-            page = page_response.json()
-
+            page = await self.get_page(endpoint, self.limit, offset, params=params)
             items = page["data"]
 
             for item in items:
@@ -125,11 +131,10 @@ class BaseZitiAPI(ABC):
 
             pagination_meta = page["meta"]["pagination"]
             total = pagination_meta["totalCount"]
-            if total <= self.limit + params["offset"]:
+            if total <= self.limit + offset:
                 break
 
-            params["offset"] = params["offset"] + self.limit
-
+            offset = offset + self.limit
 
     async def __aenter__(self):
         await self.httpx_client.__aenter__()
@@ -147,6 +152,7 @@ class BaseZitiAPI(ABC):
         prepared_tags: TagsType = tags or {}
         prepared_tags.update(OWNER_TAG)
         return prepared_tags
+
 
 class BaseZitiAuth(httpx.Auth):
     def __init__(self, api: BaseZitiAPI):
@@ -191,7 +197,7 @@ class ZitiPasswordAuth(BaseZitiAuth):
     async def async_auth_flow(
         self, request: httpx.Request
     ) -> AsyncGenerator[httpx.Request, httpx.Response]:
-        request.headers["zt-session"] = self.api.token
+        request.headers["zt-session"] = self.api.token or ""
         response = yield request
 
         if response.status_code == 401:
@@ -199,7 +205,7 @@ class ZitiPasswordAuth(BaseZitiAuth):
             refresh_response = yield refresh_request
             await refresh_response.aread()
             self.update_token(refresh_response)
-            request.headers["zt-session"] = self.api.token
+            request.headers["zt-session"] = self.api.token or ""
             yield request
 
     def build_refresh_request(self) -> httpx.Request:
@@ -225,7 +231,7 @@ class ZitiIdentityAuth(BaseZitiAuth):
     async def async_auth_flow(
         self, request: httpx.Request
     ) -> AsyncGenerator[httpx.Request, httpx.Response]:
-        request.headers["zt-session"] = self.api.token
+        request.headers["zt-session"] = self.api.token or ""
         response = yield request
 
         if response.status_code == 401:
@@ -233,7 +239,7 @@ class ZitiIdentityAuth(BaseZitiAuth):
             refresh_response = await self.get_auth_token()
             # await refresh_response.aread()
             self.update_token(refresh_response)
-            request.headers["zt-session"] = self.api.token
+            request.headers["zt-session"] = self.api.token or ""
             yield request
 
     async def get_auth_token(self):
@@ -318,9 +324,7 @@ class ZitiManagementAPI(BaseZitiAPI):
             "/service-edge-router-policies",
             {
                 "name": name,
-                "edgeRouterRoles": [
-                    "#all"
-                ],
+                "edgeRouterRoles": ["#all"],
                 "serviceRoles": [
                     f"@{service_id}",
                 ],
@@ -339,12 +343,8 @@ class ZitiManagementAPI(BaseZitiAPI):
             "/edge-router-policies",
             {
                 "name": name,
-                "edgeRouterRoles": [
-                    "#all"
-                ],
-                "identityRoles": [
-                    f"@{identity_id}"
-                ],
+                "edgeRouterRoles": ["#all"],
+                "identityRoles": [f"@{identity_id}"],
                 "semantic": "AllOf",
             },
             tags,
