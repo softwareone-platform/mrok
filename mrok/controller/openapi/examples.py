@@ -26,7 +26,7 @@ INSTANCE_CREATE_RESPONSE = {
         "id": {
             "key": "pem:-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
             "cert": "pem:-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
-            "ca": "pem:pem:-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
+            "ca": "pem:-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
         },
         "enableHa": None,
     },

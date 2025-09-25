@@ -1,21 +1,22 @@
+import logging
 from typing import Any
 
 import jwt
 
-from mrok.conf import get_settings
 from mrok.ziti import pki
-from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
+from mrok.ziti.api import TagsType, ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.errors import ProxyIdentityAlreadyExistsError, ServiceNotFoundError
+
+logger = logging.getLogger("mrok.ziti")
 
 
 async def enroll_instance_identity(
+    mgmt_api: ZitiManagementAPI,
+    client_api: ZitiClientAPI,
     extension_id: str,
     instance_id: str,
-    tags: dict[str, str] | None = None,
+    tags: TagsType | None = None,
 ):
-    settings = get_settings()
-    mgmt_api = ZitiManagementAPI(settings)
-    client_api = ZitiClientAPI(settings)
     service = await mgmt_api.search_service(extension_id)
     if not service:
         raise ServiceNotFoundError(f"A service with name {extension_id} does not exists.")
@@ -25,10 +26,13 @@ async def enroll_instance_identity(
 
     identity = await mgmt_api.search_identity(identity_name)
     if identity:
-        await mgmt_api.delete_identity(identity["id"])
         service_policy = await mgmt_api.search_service_policy(service_policy_name)
         if service_policy:
             await mgmt_api.delete_service_policy(service_policy["id"])
+        router_policy = await mgmt_api.search_router_policy(identity_name)
+        if router_policy:
+            await mgmt_api.delete_router_policy(router_policy["id"])
+        await mgmt_api.delete_identity(identity["id"])
 
     identity_id = await mgmt_api.create_user_identity(identity_name, tags=tags)
     identity = await mgmt_api.get_identity(identity_id)
@@ -53,15 +57,16 @@ async def enroll_instance_identity(
 
 
 async def enroll_proxy_identity(
+    mgmt_api: ZitiManagementAPI,
+    client_api: ZitiClientAPI,
     identity_name: str,
-    tags: dict[str, str] | None = None,
+    tags: TagsType | None = None,
 ):
-    settings = get_settings()
-    mgmt_api = ZitiManagementAPI(settings)
-    client_api = ZitiClientAPI(settings)
     identity = await mgmt_api.search_identity(identity_name)
     if identity:
-        raise ProxyIdentityAlreadyExistsError("A proxy identity with name `` already exists.")
+        raise ProxyIdentityAlreadyExistsError(
+            f"A proxy identity with name `{identity}` already exists."
+        )
 
     identity_id = await mgmt_api.create_device_identity(identity_name, tags=tags)
     identity = await mgmt_api.get_identity(identity_id)
@@ -83,7 +88,7 @@ async def enroll_proxy_identity(
 
 
 def _get_enroll_token_claims(identity: dict[str, Any]):
-    jwt_token = identity["data"]["enrollment"]["ott"]["jwt"]
+    jwt_token = identity["enrollment"]["ott"]["jwt"]
     return jwt.decode(jwt_token, algorithms=["RS256"], options={"verify_signature": False})
 
 

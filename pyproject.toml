@@ -27,6 +27,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "asgi-lifespan>=2.1.0,<3.0.0",
     "bandit>=1.8.6,<2.0.0",
     "ipython>=9.4.0,<10.0.0",
     "mypy>=1.17.1,<2.0.0",

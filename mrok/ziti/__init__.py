@@ -1,7 +1,7 @@
 from mrok.ziti.api import (
     ZitiAPIError,
     ZitiAuthError,
-    ZitiBadRequest,
+    ZitiBadRequestError,
     ZitiClientAPI,
     ZitiManagementAPI,
 )
@@ -9,7 +9,7 @@ from mrok.ziti.api import (
 __all__ = [
     "ZitiAPIError",
     "ZitiAuthError",
-    "ZitiBadRequest",
+    "ZitiBadRequestError",
     "ZitiClientAPI",
     "ZitiManagementAPI",
 ]

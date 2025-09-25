@@ -5,7 +5,7 @@ from typing import Annotated, Any
 import typer
 from gunicorn.app.base import BaseApplication
 
-# from app.logging import get_logging_config
+from mrok.cli.logging import get_logging_config
 from mrok.controller.app import app as asgi_app
 
 
@@ -81,7 +81,7 @@ def register(app: typer.Typer) -> None:
             "bind": f"{host}:{port}",
             "workers": workers,
             "worker_class": "uvicorn_worker.UvicornWorker",
-            # "logconfig_dict": get_logging_config(ctx.obj),
+            "logconfig_dict": get_logging_config(ctx.obj),
             "reload": dev,
         }
         StandaloneApplication(asgi_app, options).run()
