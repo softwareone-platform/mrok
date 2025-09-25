@@ -3,11 +3,18 @@ from dynaconf import Dynaconf, LazySettings
 type Settings = LazySettings
 
 DEFAULT_SETTINGS = {
-    "logging__debug": False,
-    "logging__rich": False,
-    "proxy__identity": "public",
-    "proxy__mode": "zrok",  # change for mrok
-    "ziti__ssl_verify": True,
+    "LOGGING": {
+        "debug": False,
+        "rich": False,
+    },
+    "PROXY": {
+        "identity": "public",
+        "mode": "zrok",
+    },
+    "ZITI": {
+        "ssl_verify": False,
+    },
+    "PAGINATION": {"limit": 50},
 }
 
 _settings = None

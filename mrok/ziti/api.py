@@ -29,22 +29,20 @@ class ZitiAuthError(ZitiAPIError):
     pass
 
 
-class ZitiBadRequest(ZitiAPIError):
+class ZitiBadRequestError(ZitiAPIError):
     def __init__(self, response: dict[str, Any]):
         self.response = response
 
     def __str__(self) -> str:
         err = self.response["error"]
         cause = err["cause"]
-        return f"""{err["code"]} - {err["message"]}
-    {cause["field"]}: {cause["reason"]}
-"""
+        return f"{err['code']} - {err['message']} ({cause['field']}: {cause['reason']})"
 
 
 class BaseZitiAPI(ABC):
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.limit = 50
+        self.limit = self.settings.pagination.limit
         self.token = None
 
     @property
@@ -53,9 +51,13 @@ class BaseZitiAPI(ABC):
         raise NotImplementedError("base_url property must be implemented in subclasses")
 
     @property
-    @abstractmethod
     def auth(self):
-        raise NotImplementedError("base_url property must be implemented in subclasses")
+        if self.settings.ziti.auth.get("username") and self.settings.ziti.auth.get("password"):
+            return ZitiPasswordAuth(self)
+        elif self.settings.ziti.auth.get("identity"):
+            return ZitiIdentityAuth(self)
+        else:
+            raise ZitiAuthError("Unsupported authentication method for OpenZiti.")
 
     @cached_property
     def httpx_client(self) -> httpx.AsyncClient:
@@ -78,7 +80,7 @@ class BaseZitiAPI(ABC):
             json=payload,
         )
         if response.status_code == 400:
-            raise ZitiBadRequest(response.json())
+            raise ZitiBadRequestError(response.json())
         response.raise_for_status()
         return response.json()["data"]["id"]
 
@@ -101,7 +103,7 @@ class BaseZitiAPI(ABC):
             params={"filter": query},
         )
         if response.status_code == 400:
-            raise ZitiBadRequest(response.json())
+            raise ZitiBadRequestError(response.json())
         response.raise_for_status()
         response_data = response.json()
         if response_data["meta"]["pagination"]["totalCount"] == 1:
@@ -160,9 +162,8 @@ class BaseZitiAuth(httpx.Auth):
 
     def update_token(self, response: httpx.Response) -> None:
         response.raise_for_status()
-        if response.status_code == 200:
-            data = response.json()
-            self.api.token = data["data"]["token"]
+        data = response.json()
+        self.api.token = data["data"]["token"]
 
 
 class ZitiIdentityAuthContext:
@@ -200,7 +201,7 @@ class ZitiPasswordAuth(BaseZitiAuth):
         request.headers["zt-session"] = self.api.token or ""
         response = yield request
 
-        if response.status_code == 401:
+        if response.status_code == 401:  # pragma: no branch
             refresh_request = self.build_refresh_request()
             refresh_response = yield refresh_request
             await refresh_response.aread()
@@ -234,7 +235,7 @@ class ZitiIdentityAuth(BaseZitiAuth):
         request.headers["zt-session"] = self.api.token or ""
         response = yield request
 
-        if response.status_code == 401:
+        if response.status_code == 401:  # pragma: no cover
             # Use the new client certificate authentication method
             refresh_response = await self.get_auth_token()
             # await refresh_response.aread()
@@ -258,15 +259,6 @@ class ZitiManagementAPI(BaseZitiAPI):
     @property
     def base_url(self):
         return f"{self.settings.ziti.url}/edge/management/v1"
-
-    @property
-    def auth(self):
-        if self.settings.ziti.auth.username and self.settings.ziti.auth.password:
-            return ZitiPasswordAuth(self)
-        elif self.settings.ziti.auth.identity:
-            return ZitiIdentityAuth(self)
-        else:
-            raise ZitiAuthError("Unsupported authentication method")
 
     def services(self) -> AsyncGenerator[dict[str, Any], None]:
         return self.collection_iterator("/services")
@@ -353,8 +345,14 @@ class ZitiManagementAPI(BaseZitiAPI):
     async def search_service_router_policy(self, id_or_name: str) -> dict[str, Any] | None:
         return await self.search_by_id_or_name("/service-edge-router-policies", id_or_name)
 
+    async def search_router_policy(self, id_or_name: str) -> dict[str, Any] | None:
+        return await self.search_by_id_or_name("/edge-router-policies", id_or_name)
+
     async def delete_service_router_policy(self, policy_id: str) -> None:
         return await self.delete("/service-edge-router-policies", policy_id)
+
+    async def delete_router_policy(self, policy_id: str) -> None:
+        return await self.delete("/edge-router-policies", policy_id)
 
     async def search_service(self, id_or_name: str) -> dict[str, Any] | None:
         return await self.search_by_id_or_name("/services", id_or_name)
@@ -381,7 +379,7 @@ class ZitiManagementAPI(BaseZitiAPI):
         return await self.get("/identities", identity_id)
 
     async def delete_identity(self, identity_id: str) -> None:
-        return await self.delete("/identites", identity_id)
+        return await self.delete("/identities", identity_id)
 
     async def fetch_ca_certificates(self) -> str:
         response = await self.httpx_client.get("/.well-known/est/cacerts")
@@ -446,15 +444,6 @@ class ZitiClientAPI(BaseZitiAPI):
     @property
     def base_url(self):
         return f"{self.settings.ziti.url}/edge/client/v1"
-
-    @property
-    def auth(self):
-        if self.settings.ziti.auth.username and self.settings.ziti.auth.password:
-            return ZitiPasswordAuth(self)
-        elif self.settings.ziti.auth.identity:
-            return ZitiIdentityAuth(self)
-        else:
-            raise ZitiAuthError("Unsupported authentication method")
 
     async def enroll_identity(self, jti: str, csr_pem: str) -> dict[str, Any]:
         response = await self.httpx_client.post(

@@ -56,7 +56,6 @@ def setup_app():
     settings = get_settings()
 
     app.openapi = partial(generate_openapi_spec, app, settings)
-
     return app
 
 

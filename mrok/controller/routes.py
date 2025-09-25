@@ -13,7 +13,7 @@ from mrok.ziti.errors import (
     ServiceAlreadyRegisteredError,
     ServiceNotFoundError,
 )
-from mrok.ziti.services import get_service, register_service, unregister_service
+from mrok.ziti.services import register_service, unregister_service
 
 logger = logging.getLogger("mrok.controller")
 
@@ -57,7 +57,6 @@ async def create_extension(
 ):
     try:
         service = await register_service(settings, mgmt_api, data.extension.id, data.tags)
-        logger.info(f"service: {service}")
         return ExtensionRead(
             id=service["id"],
             name=service["name"],
@@ -66,7 +65,7 @@ async def create_extension(
     except (ProxyIdentityNotFoundError, ConfigTypeNotFoundError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"OpenZiti not configured properly: {e}.",
+            detail=f"OpenZiti not configured properly: {e}",
         ) from e
     except ServiceAlreadyRegisteredError as e:
         raise HTTPException(
@@ -91,7 +90,7 @@ async def get_extension_by_id_or_extension_id(
     mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
 ):
-    service = await get_service(mgmt_api, id_or_extension_id)
+    service = await mgmt_api.search_service(id_or_extension_id)
     if not service:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
