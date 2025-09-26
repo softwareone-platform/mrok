@@ -13,6 +13,7 @@ from mrok.ziti.api import (
     ZitiIdentityAuthContext,
     ZitiManagementAPI,
 )
+from mrok.ziti.constants import MROK_VERSION_TAG_NAME
 from tests.conftest import SettingsFactory
 
 
@@ -26,7 +27,7 @@ async def test_create(
     settings = settings_factory()
     expected_body = {
         "test": "payload",
-        "tags": {"mrok": "1.0", **(tags or {})},
+        "tags": {MROK_VERSION_TAG_NAME: "0.0.0.dev0", **(tags or {})},
     }
     httpx_mock.add_response(
         method="POST",
@@ -93,7 +94,7 @@ async def test_delete(
 @pytest.mark.asyncio
 async def test_search_by_id_or_name(settings_factory: SettingsFactory, httpx_mock: HTTPXMock):
     settings = settings_factory()
-    query = quote('(id="svc" or name="svc") and tags.mrok != null')
+    query = quote(f'(id="svc" or name="svc") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
         url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
@@ -113,7 +114,7 @@ async def test_search_by_id_or_name_no_results(
     settings_factory: SettingsFactory, httpx_mock: HTTPXMock
 ):
     settings = settings_factory()
-    query = quote('(id="svc" or name="svc") and tags.mrok != null')
+    query = quote(f'(id="svc" or name="svc") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
         url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
@@ -132,7 +133,7 @@ async def test_search_by_id_or_name_bad_request(
     settings_factory: SettingsFactory, httpx_mock: HTTPXMock, ziti_bad_request_error: dict[str, Any]
 ):
     settings = settings_factory()
-    query = quote('(id="svc" or name="svc") and tags.mrok != null')
+    query = quote(f'(id="svc" or name="svc") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
         url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",

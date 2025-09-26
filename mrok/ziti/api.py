@@ -11,12 +11,9 @@ from typing import Any, Literal
 import httpx
 
 from mrok.conf import Settings
+from mrok.ziti.constants import MROK_VERSION_TAG, MROK_VERSION_TAG_NAME
 
 logger = logging.getLogger(__name__)
-
-OWNER_TAG_NAME = "mrok"
-OWNER_TAG_VALUE = "1.0"
-OWNER_TAG = {OWNER_TAG_NAME: OWNER_TAG_VALUE}
 
 TagsType = dict[str, str | bool | None]
 
@@ -96,7 +93,8 @@ class BaseZitiAPI(ABC):
 
     async def search_by_id_or_name(self, endpoint: str, id_or_name: str) -> dict[str, Any] | None:
         query = (
-            f'(id="{id_or_name}" or name="{id_or_name.lower()}") and tags.{OWNER_TAG_NAME} != null'
+            f'(id="{id_or_name}" or name="{id_or_name.lower()}") '
+            f"and tags.{MROK_VERSION_TAG_NAME} != null"
         )
         response = await self.httpx_client.get(
             endpoint,
@@ -152,7 +150,7 @@ class BaseZitiAPI(ABC):
 
     def _merge_tags(self, tags: TagsType | None) -> TagsType:
         prepared_tags: TagsType = tags or {}
-        prepared_tags.update(OWNER_TAG)
+        prepared_tags.update(MROK_VERSION_TAG)
         return prepared_tags
 
 

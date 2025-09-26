@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
@@ -50,6 +50,7 @@ class InstanceBase(BaseSchema):
 
 class InstanceRead(BaseSchema, IdSchema):
     name: str
+    identity: dict[str, Any] | None = None
 
     @computed_field
     def instance(self) -> dict:

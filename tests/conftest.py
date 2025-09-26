@@ -88,16 +88,17 @@ def ziti_identity_file(ziti_identity_json: dict[str, Any]) -> Generator[str, Non
         yield f.name
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def fastapi_app(settings_factory: SettingsFactory) -> FastAPI:
     settings = settings_factory()
-    from mrok.controller.app import app
+    from mrok.controller.app import setup_app
 
+    app = setup_app()
     app.dependency_overrides[get_settings] = lambda: settings
     return app
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 async def app_lifespan_manager(fastapi_app: FastAPI) -> AsyncGenerator[LifespanManager, None]:
     async with LifespanManager(fastapi_app) as lifespan_manager:
         yield lifespan_manager

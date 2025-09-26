@@ -1,0 +1,6 @@
+import mrok
+
+MROK_VERSION_TAG_NAME = "mrok.version"
+MROK_VERSION_TAG_VALUE = mrok.__version__
+MROK_VERSION_TAG = {MROK_VERSION_TAG_NAME: MROK_VERSION_TAG_VALUE}
+MROK_SERVICE_TAG_NAME = "mrok.service"
