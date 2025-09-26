@@ -13,7 +13,7 @@ from mrok.ziti.errors import (
 logger = logging.getLogger(__name__)
 
 
-async def register_service(
+async def register_extension(
     settings: Settings, mgmt_api: ZitiManagementAPI, extension_id: str, tags: TagsType | None
 ) -> dict[str, Any]:
     service_name = extension_id.lower()
@@ -62,7 +62,7 @@ async def register_service(
     return service
 
 
-async def unregister_service(
+async def unregister_extension(
     settings: Settings, mgmt_api: ZitiManagementAPI, extension_id: str
 ) -> None:
     service_name = extension_id.lower()

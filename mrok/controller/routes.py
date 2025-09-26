@@ -3,21 +3,48 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, status
 
-from mrok.controller.dependencies import AppSettings, ZitiManagementAPI
+from mrok.controller.dependencies import AppSettings, ZitiClientAPI, ZitiManagementAPI
 from mrok.controller.openapi import examples
 from mrok.controller.pagination import LimitOffsetPage, paginate
 from mrok.controller.schemas import ExtensionCreate, ExtensionRead, InstanceCreate, InstanceRead
+from mrok.ziti.constants import MROK_SERVICE_TAG_NAME
 from mrok.ziti.errors import (
     ConfigTypeNotFoundError,
     ProxyIdentityNotFoundError,
     ServiceAlreadyRegisteredError,
     ServiceNotFoundError,
 )
-from mrok.ziti.services import register_service, unregister_service
+from mrok.ziti.identities import register_instance, unregister_instance
+from mrok.ziti.services import register_extension, unregister_extension
 
 logger = logging.getLogger("mrok.controller")
 
 router = APIRouter()
+
+
+async def fetch_extension_or_404(mgmt_api: ZitiManagementAPI, id_or_extension_id: str):
+    service = await mgmt_api.search_service(id_or_extension_id)
+    if not service:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    return service
+
+
+async def fetch_instance_or_404(
+    mgmt_api: ZitiManagementAPI, id_or_extension_id: str, id_or_instance_id: str
+):
+    service = await fetch_extension_or_404(mgmt_api, id_or_extension_id)
+    if id_or_instance_id.startswith("INS-"):
+        id_or_name = f"{id_or_instance_id}.{service['name']}"
+    else:
+        id_or_name = id_or_instance_id
+    identity = await mgmt_api.search_identity(id_or_name)
+    if not identity:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    return identity
 
 
 @router.post(
@@ -56,7 +83,7 @@ async def create_extension(
     ],
 ):
     try:
-        service = await register_service(settings, mgmt_api, data.extension.id, data.tags)
+        service = await register_extension(settings, mgmt_api, data.extension.id, data.tags)
         return ExtensionRead(
             id=service["id"],
             name=service["name"],
@@ -90,12 +117,7 @@ async def get_extension_by_id_or_extension_id(
     mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
 ):
-    service = await mgmt_api.search_service(id_or_extension_id)
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-    return ExtensionRead(**service)
+    return ExtensionRead(**(await fetch_extension_or_404(mgmt_api, id_or_extension_id)))
 
 
 @router.delete(
@@ -109,7 +131,7 @@ async def delete_instance_by_id_or_extension_id(
     id_or_extension_id: str,
 ):
     try:
-        await unregister_service(settings, mgmt_api, id_or_extension_id)
+        await unregister_extension(settings, mgmt_api, id_or_extension_id)
     except ServiceNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -163,6 +185,8 @@ async def get_extensions(
     tags=["Instances"],
 )
 async def create_extension_instances(
+    mgmt_api: ZitiManagementAPI,
+    client_api: ZitiClientAPI,
     id_or_extension_id: str,
     data: Annotated[
         InstanceCreate,
@@ -180,7 +204,16 @@ async def create_extension_instances(
         ),
     ],
 ):
-    pass
+    service = await fetch_extension_or_404(mgmt_api, id_or_extension_id)
+    identity, identity_file = await register_instance(
+        mgmt_api, client_api, service["name"], data.instance.id, data.tags
+    )
+    return InstanceRead(
+        id=identity["id"],
+        name=identity["name"],
+        identity=identity_file,
+        tags=identity["tags"],
+    )
 
 
 @router.get(
@@ -209,9 +242,16 @@ async def create_extension_instances(
     tags=["Instances"],
 )
 async def list_extension_instances(
+    mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
 ):
-    pass
+    service = await fetch_extension_or_404(mgmt_api, id_or_extension_id)
+    return await paginate(
+        mgmt_api,
+        "/identities",
+        InstanceRead,
+        {"filter": f'tags.{MROK_SERVICE_TAG_NAME} = "{service["name"]}"'},
+    )
 
 
 @router.get(
@@ -227,10 +267,16 @@ async def list_extension_instances(
     tags=["Instances"],
 )
 async def get_instance_by_id_or_instance_id(
+    mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
     id_or_instance_id: str,
 ):
-    pass
+    identity = await fetch_instance_or_404(mgmt_api, id_or_extension_id, id_or_instance_id)
+    return InstanceRead(
+        id=identity["id"],
+        name=identity["name"],
+        tags=identity["tags"],
+    )
 
 
 @router.delete(
@@ -239,7 +285,10 @@ async def get_instance_by_id_or_instance_id(
     tags=["Instances"],
 )
 async def delete_instance_by_id_or_instance_id(
+    mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
     id_or_instance_id: str,
 ):
-    pass
+    identity = await fetch_instance_or_404(mgmt_api, id_or_extension_id, id_or_instance_id)
+    instance_id, extension_id = identity["name"].split(".")
+    await unregister_instance(mgmt_api, extension_id, instance_id)

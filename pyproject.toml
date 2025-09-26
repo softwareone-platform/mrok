@@ -1,6 +1,6 @@
 [project]
 name = "mrok"
-version = "0.1.0"
+version = "0.0.0.dev0"
 description = "MPT Extensions OpenZiti Orchestrator"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [

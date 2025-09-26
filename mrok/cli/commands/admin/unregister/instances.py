@@ -1,8 +1,18 @@
+import asyncio
 import re
 
 import typer
 
+from mrok.conf import Settings
+from mrok.ziti.api import ZitiManagementAPI
+from mrok.ziti.identities import unregister_instance
+
 RE_EXTENSION_ID = re.compile(r"(?i)EXT-\d{4}-\d{4}")
+
+
+async def do_unregister(settings: Settings, extension_id: str, instance_id: str):
+    async with ZitiManagementAPI(settings) as api:
+        await unregister_instance(api, extension_id, instance_id)
 
 
 def validate_extension_id(extension_id: str):
@@ -21,4 +31,4 @@ def register(app: typer.Typer) -> None:
         instance_id: str = typer.Argument(..., help="Instance ID"),
     ):
         """Register a new Extension Instance in OpenZiti (identity)."""
-        # asyncio.run(do_unregister(ctx.obj, extension_id, instance_id))
+        asyncio.run(do_unregister(ctx.obj, extension_id, instance_id))

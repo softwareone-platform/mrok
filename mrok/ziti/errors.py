@@ -13,6 +13,10 @@ class ServiceNotFoundError(MrokError):
     pass
 
 
+class UserIdentityNotFoundError(MrokError):
+    pass
+
+
 class ConfigTypeNotFoundError(MrokError):
     pass
 

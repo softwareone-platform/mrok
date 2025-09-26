@@ -1,8 +1,10 @@
+from mrok.ziti.constants import MROK_SERVICE_TAG_NAME, MROK_VERSION_TAG_NAME
+
 EXTENSION_RESPONSE = {
     "id": "5Jm3PpLQ4mdzqXNRszhE0G",
     "name": "ext-1234-5678",
     "extension": {"id": "EXT-1234-5678"},
-    "tags": {"account": "ACC-5555-3333", "mrok": "1.0"},
+    "tags": {"account": "ACC-5555-3333", MROK_VERSION_TAG_NAME: "1.0"},
 }
 
 
@@ -11,7 +13,11 @@ INSTANCE_RESPONSE = {
     "name": "ins-1234-5678-0001.ext-1234-5678",
     "extension": {"id": "EXT-1234-5678"},
     "instance": {"id": "INS-1234-5678-0001"},
-    "tags": {"account": "ACC-5555-3333", "mrok": "1.0"},
+    "tags": {
+        "account": "ACC-5555-3333",
+        MROK_VERSION_TAG_NAME: "1.0",
+        MROK_SERVICE_TAG_NAME: "ext-1234-5678",
+    },
 }
 
 INSTANCE_CREATE_RESPONSE = {
@@ -30,5 +36,9 @@ INSTANCE_CREATE_RESPONSE = {
         },
         "enableHa": None,
     },
-    "tags": {"account": "ACC-5555-3333", "mrok": "1.0"},
+    "tags": {
+        "account": "ACC-5555-3333",
+        MROK_VERSION_TAG_NAME: "1.0",
+        MROK_SERVICE_TAG_NAME: "ext-1234-5678",
+    },
 }

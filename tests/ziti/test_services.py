@@ -7,14 +7,14 @@ from mrok.ziti.services import (
     ProxyIdentityNotFoundError,
     ServiceAlreadyRegisteredError,
     ServiceNotFoundError,
-    register_service,
-    unregister_service,
+    register_extension,
+    unregister_extension,
 )
 from tests.conftest import SettingsFactory
 
 
 @pytest.mark.asyncio
-async def test_register_service(mocker: MockerFixture, settings_factory: SettingsFactory):
+async def test_register_extension(mocker: MockerFixture, settings_factory: SettingsFactory):
     settings = settings_factory()
     mocked_api = mocker.AsyncMock()
     mocked_api.search_identity.return_value = {"id": "proxy_identity_id"}
@@ -29,7 +29,7 @@ async def test_register_service(mocker: MockerFixture, settings_factory: Setting
 
     tags: TagsType = {"tag": "my-tag"}
 
-    await register_service(settings, mocked_api, "EXT-1234", tags)
+    await register_extension(settings, mocked_api, "EXT-1234", tags)
 
     mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
     mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
@@ -60,7 +60,7 @@ async def test_register_service(mocker: MockerFixture, settings_factory: Setting
 
 
 @pytest.mark.asyncio
-async def test_register_service_no_proxy_identity(
+async def test_register_extension_no_proxy_identity(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -68,12 +68,12 @@ async def test_register_service_no_proxy_identity(
     mocked_api.search_identity.return_value = None
 
     with pytest.raises(ProxyIdentityNotFoundError) as cv:
-        await register_service(settings, mocked_api, "EXT-1234", None)
+        await register_extension(settings, mocked_api, "EXT-1234", None)
     assert str(cv.value) == f"Identity for proxy `{settings.proxy.identity}` not found."
 
 
 @pytest.mark.asyncio
-async def test_register_service_no_config_type(
+async def test_register_extension_no_config_type(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -82,12 +82,12 @@ async def test_register_service_no_config_type(
     mocked_api.search_config_type.return_value = None
 
     with pytest.raises(ConfigTypeNotFoundError) as cv:
-        await register_service(settings, mocked_api, "EXT-1234", None)
+        await register_extension(settings, mocked_api, "EXT-1234", None)
     assert str(cv.value) == f"Config type `{settings.proxy.mode}.proxy.v1` not found."
 
 
 @pytest.mark.asyncio
-async def test_register_service_config_exists(
+async def test_register_extension_config_exists(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -103,7 +103,7 @@ async def test_register_service_config_exists(
 
     tags: TagsType = {"tag": "my-tag"}
 
-    await register_service(settings, mocked_api, "EXT-1234", tags)
+    await register_extension(settings, mocked_api, "EXT-1234", tags)
 
     mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
     mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
@@ -129,7 +129,7 @@ async def test_register_service_config_exists(
 
 
 @pytest.mark.asyncio
-async def test_register_service_service_exists(
+async def test_register_extension_service_exists(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -143,7 +143,7 @@ async def test_register_service_service_exists(
 
     tags: TagsType = {"tag": "my-tag"}
 
-    await register_service(settings, mocked_api, "EXT-1234", tags)
+    await register_extension(settings, mocked_api, "EXT-1234", tags)
 
     mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
     mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
@@ -170,7 +170,7 @@ async def test_register_service_service_exists(
 
 
 @pytest.mark.asyncio
-async def test_register_service_dial_policy_exists(
+async def test_register_extension_dial_policy_exists(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -184,7 +184,7 @@ async def test_register_service_dial_policy_exists(
 
     tags: TagsType = {"tag": "my-tag"}
 
-    await register_service(settings, mocked_api, "EXT-1234", tags)
+    await register_extension(settings, mocked_api, "EXT-1234", tags)
 
     mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
     mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
@@ -206,7 +206,7 @@ async def test_register_service_dial_policy_exists(
 
 
 @pytest.mark.asyncio
-async def test_register_service_router_policy_exists(
+async def test_register_extension_router_policy_exists(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -221,7 +221,7 @@ async def test_register_service_router_policy_exists(
     tags: TagsType = {"tag": "my-tag"}
 
     with pytest.raises(ServiceAlreadyRegisteredError) as cv:
-        await register_service(settings, mocked_api, "EXT-1234", tags)
+        await register_extension(settings, mocked_api, "EXT-1234", tags)
     assert str(cv.value) == "Extension `EXT-1234` already registered."
 
     mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
@@ -240,7 +240,7 @@ async def test_register_service_router_policy_exists(
 
 
 @pytest.mark.asyncio
-async def test_unregister_service(mocker: MockerFixture, settings_factory: SettingsFactory):
+async def test_unregister_extension(mocker: MockerFixture, settings_factory: SettingsFactory):
     settings = settings_factory()
     mocked_api = mocker.AsyncMock()
     mocked_api.search_service.return_value = {"id": "service_id"}
@@ -248,7 +248,7 @@ async def test_unregister_service(mocker: MockerFixture, settings_factory: Setti
     mocked_api.search_service_policy.return_value = {"id": "service_policy_id"}
     mocked_api.search_config.return_value = {"id": "config_id"}
 
-    await unregister_service(settings, mocked_api, "EXT-1234")
+    await unregister_extension(settings, mocked_api, "EXT-1234")
 
     mocked_api.delete_service_router_policy.assert_awaited_once_with("router_policy_id")
     mocked_api.delete_service_policy.assert_awaited_once_with("service_policy_id")
@@ -257,7 +257,7 @@ async def test_unregister_service(mocker: MockerFixture, settings_factory: Setti
 
 
 @pytest.mark.asyncio
-async def test_unregister_service_not_found(
+async def test_unregister_extension_not_found(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -265,12 +265,12 @@ async def test_unregister_service_not_found(
     mocked_api.search_service.return_value = None
 
     with pytest.raises(ServiceNotFoundError) as cv:
-        await unregister_service(settings, mocked_api, "EXT-1234")
+        await unregister_extension(settings, mocked_api, "EXT-1234")
     assert str(cv.value) == "Extension `EXT-1234` not found."
 
 
 @pytest.mark.asyncio
-async def test_unregister_service_router_policy_doesnt_exist(
+async def test_unregister_extension_router_policy_doesnt_exist(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -280,7 +280,7 @@ async def test_unregister_service_router_policy_doesnt_exist(
     mocked_api.search_service_policy.return_value = {"id": "service_policy_id"}
     mocked_api.search_config.return_value = {"id": "config_id"}
 
-    await unregister_service(settings, mocked_api, "EXT-1234")
+    await unregister_extension(settings, mocked_api, "EXT-1234")
 
     mocked_api.delete_service_router_policy.assert_not_awaited()
     mocked_api.delete_service_policy.assert_awaited_once_with("service_policy_id")
@@ -289,7 +289,7 @@ async def test_unregister_service_router_policy_doesnt_exist(
 
 
 @pytest.mark.asyncio
-async def test_unregister_service_service_policy_doesnt_exist(
+async def test_unregister_extension_service_policy_doesnt_exist(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -299,7 +299,7 @@ async def test_unregister_service_service_policy_doesnt_exist(
     mocked_api.search_service_policy.return_value = None
     mocked_api.search_config.return_value = {"id": "config_id"}
 
-    await unregister_service(settings, mocked_api, "EXT-1234")
+    await unregister_extension(settings, mocked_api, "EXT-1234")
 
     mocked_api.delete_service_router_policy.assert_not_awaited()
     mocked_api.delete_service_policy.assert_not_awaited()
@@ -308,7 +308,7 @@ async def test_unregister_service_service_policy_doesnt_exist(
 
 
 @pytest.mark.asyncio
-async def test_unregister_service_config_doesnt_exist(
+async def test_unregister_extension_config_doesnt_exist(
     mocker: MockerFixture, settings_factory: SettingsFactory
 ):
     settings = settings_factory()
@@ -318,7 +318,7 @@ async def test_unregister_service_config_doesnt_exist(
     mocked_api.search_service_policy.return_value = None
     mocked_api.search_config.return_value = None
 
-    await unregister_service(settings, mocked_api, "EXT-1234")
+    await unregister_extension(settings, mocked_api, "EXT-1234")
 
     mocked_api.delete_service_router_policy.assert_not_awaited()
     mocked_api.delete_service_policy.assert_not_awaited()

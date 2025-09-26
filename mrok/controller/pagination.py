@@ -27,7 +27,7 @@ class LimitOffsetParams(BaseModel, AbstractParams):
     offset: int = Query(0, ge=0, description="Page offset")
 
     def to_raw_params(self) -> RawParams:
-        return RawParams(
+        return RawParams(  # pragma: no cover
             limit=self.limit,
             offset=self.offset,
         )
@@ -48,7 +48,7 @@ class LimitOffsetPage[S: BaseSchema](AbstractPage[S]):
         total: int | None = None,
         **kwargs: Any,
     ) -> LimitOffsetPage[S]:
-        if not isinstance(params, LimitOffsetParams):
+        if not isinstance(params, LimitOffsetParams):  # pragma: no cover
             raise TypeError("params must be of type LimitOffsetParams")
         return cls(  # type: ignore
             data=items,
@@ -66,9 +66,10 @@ async def paginate[S: BaseSchema](
     api: BaseZitiAPI,
     endpoint: str,
     schema_cls: type[S],
+    extra_params: dict | None = None,
 ) -> AbstractPage[S]:
     params: LimitOffsetParams = resolve_params()
-    page = await api.get_page(endpoint, params.limit, params.offset)
+    page = await api.get_page(endpoint, params.limit, params.offset, extra_params)
     pagination_meta = page["meta"]["pagination"]
     total = pagination_meta["totalCount"]
     return create_page(
