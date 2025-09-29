@@ -7,9 +7,9 @@ from rich.text import Text
 from typer.core import TyperGroup
 
 from mrok.cli import commands
-from mrok.cli.logging import setup_logging
 from mrok.cli.rich import get_console
 from mrok.conf import get_settings
+from mrok.logging import setup_logging
 
 
 def gradient(start_hex, end_hex, num_samples=10):
