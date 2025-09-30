@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 from mrok.cli import app
 from mrok.cli.commands.admin.register.extensions import do_register as do_register_extension
 from mrok.cli.commands.admin.register.instances import do_register as do_register_instance
-from mrok.cli.commands.admin.register.utils import parse_tags
+from mrok.cli.commands.admin.utils import parse_tags
 from tests.conftest import SettingsFactory
 
 

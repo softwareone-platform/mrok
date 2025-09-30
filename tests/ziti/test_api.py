@@ -292,6 +292,23 @@ async def test_create_config(mocker: MockerFixture, settings_factory: SettingsFa
 
 
 @pytest.mark.asyncio
+async def test_create_config_type(mocker: MockerFixture, settings_factory: SettingsFactory):
+    settings = settings_factory()
+    mocked_create = mocker.patch.object(ZitiManagementAPI, "create", return_value="id")
+    async with ZitiManagementAPI(settings) as api:
+        config_type_id = await api.create_config_type("my-config-type")
+    assert config_type_id == "id"
+    mocked_create.assert_awaited_once_with(
+        "/config-types",
+        {
+            "name": "my-config-type",
+            "schema": {},
+        },
+        None,
+    )
+
+
+@pytest.mark.asyncio
 async def test_create_service(mocker: MockerFixture, settings_factory: SettingsFactory):
     settings = settings_factory()
     mocked_create = mocker.patch.object(ZitiManagementAPI, "create", return_value="id")

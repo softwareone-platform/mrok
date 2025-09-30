@@ -85,7 +85,7 @@ def main(
     ctx: typer.Context,
 ):
     settings = get_settings()
-    setup_logging(settings)
+    setup_logging(settings, cli_mode=True)
     ctx.obj = settings
 
 

@@ -288,6 +288,16 @@ class ZitiManagementAPI(BaseZitiAPI):
     async def delete_config(self, config_id: str) -> None:
         return await self.delete("/configs", config_id)
 
+    async def create_config_type(self, name: str, tags: TagsType | None = None) -> str:
+        return await self.create(
+            "/config-types",
+            {
+                "name": name,
+                "schema": {},
+            },
+            tags,
+        )
+
     async def create_service(
         self,
         name: str,

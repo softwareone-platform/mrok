@@ -45,23 +45,12 @@ async def register_instance(
     identity_id = await mgmt_api.create_user_identity(identity_name, tags=tags)
     identity = await mgmt_api.get_identity(identity_id)
 
-    claims = _get_enroll_token_claims(identity)
-
-    pkey_pem, csr_pem = pki.generate_key_and_csr(identity_id)
-
-    enroll_response = await client_api.enroll_identity(claims["jti"], csr_pem)
-    certificate_pem = enroll_response["data"]["cert"]
-    ca_pem = await pki.get_ca_certificates(mgmt_api)
+    identity_json = await _enroll_identity(mgmt_api, client_api, identity_id, identity)
 
     await mgmt_api.create_bind_service_policy(service_policy_name, service["id"], identity_id)
     await mgmt_api.create_router_policy(identity_name, identity_id)
 
-    return identity, _generate_identity_json(
-        client_api.base_url,
-        pkey_pem,
-        certificate_pem,
-        ca_pem,
-    )
+    return identity, identity_json
 
 
 async def unregister_instance(
@@ -101,12 +90,18 @@ async def enroll_proxy_identity(
         raise ProxyIdentityAlreadyExistsError(
             f"A proxy identity with name `{identity_name}` already exists."
         )
-
     identity_id = await mgmt_api.create_device_identity(identity_name, tags=tags)
-    identity = await mgmt_api.get_identity(identity_id)
+    identity_json = await _enroll_identity(mgmt_api, client_api, identity_id)
+    logger.info(f"Enrolled proxy identity '{identity_name}'")
+
+    return identity_id, identity_json
+
+
+async def _enroll_identity(mgmt_api, client_api, identity_id, identity=None):
+    if identity is None:
+        identity = await mgmt_api.get_identity(identity_id)
 
     claims = _get_enroll_token_claims(identity)
-
     pkey_pem, csr_pem = pki.generate_key_and_csr(identity_id)
 
     enroll_response = await client_api.enroll_identity(claims["jti"], csr_pem)

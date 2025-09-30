@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from mrok.cli.commands.admin.register.utils import parse_tags
+from mrok.cli.commands.admin.utils import parse_tags
 from mrok.conf import Settings
 from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.identities import register_instance

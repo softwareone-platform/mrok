@@ -376,7 +376,7 @@ async def test_enroll_proxy_identity(mocker: MockerFixture):
     mocked_client_api.base_url = "https://ziti.api"
     mocked_client_api.enroll_identity.return_value = {"data": {"cert": "identity-certificate"}}
 
-    identity_json = await enroll_proxy_identity(
+    _, identity_json = await enroll_proxy_identity(
         mocked_mgmt_api,
         mocked_client_api,
         "mrok-proxy",
