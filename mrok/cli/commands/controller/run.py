@@ -5,8 +5,8 @@ from typing import Annotated, Any
 import typer
 from gunicorn.app.base import BaseApplication
 
-from mrok.cli.logging import get_logging_config
 from mrok.controller.app import app as asgi_app
+from mrok.logging import get_logging_config
 
 
 def number_of_workers():
