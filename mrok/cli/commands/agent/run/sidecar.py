@@ -17,10 +17,6 @@ default_workers = number_of_workers()
 def register(app: typer.Typer) -> None:
     @app.command("sidecar")
     def run_sidecar(
-        extension_id: str = typer.Argument(
-            ...,
-            help="Extension ID",
-        ),
         identity_file: Path = typer.Argument(
             ...,
             help="Identity json file",
@@ -55,4 +51,4 @@ def register(app: typer.Typer) -> None:
         else:
             target_addr = str(target)  # type: ignore
 
-        sidecar.run(extension_id, str(identity_file), target_addr, workers=workers, reload=reload)
+        sidecar.run(str(identity_file), target_addr, workers=workers, reload=reload)

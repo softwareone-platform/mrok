@@ -36,6 +36,7 @@ def settings_factory() -> SettingsFactory:
         proxy = proxy or {
             "identity": "public",
             "mode": "zrok",
+            "domain": "exts.s1.today",
         }
         settings = Dynaconf(
             environments=True,
@@ -78,6 +79,7 @@ def ziti_identity_json() -> dict[str, Any]:
             "ca": "pem:-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
         },
         "enableHa": None,
+        "mrok": {"identity": "ins-1234-5678-0001.ext-1234-5678"},
     }
 
 

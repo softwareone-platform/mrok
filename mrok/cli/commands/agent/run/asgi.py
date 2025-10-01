@@ -22,10 +22,6 @@ def register(app: typer.Typer) -> None:
             ...,
             help="ASGI application",
         ),
-        extension_id: str = typer.Argument(
-            ...,
-            help="Extension ID",
-        ),
         identity_file: Path = typer.Argument(
             ...,
             help="Identity json file",
@@ -50,4 +46,4 @@ def register(app: typer.Typer) -> None:
         ] = False,
     ):
         """Run an ASGI application exposing it through OpenZiti network."""
-        ziticorn.run(app, extension_id, str(identity_file), workers=workers, reload=reload)
+        ziticorn.run(app, str(identity_file), workers=workers, reload=reload)

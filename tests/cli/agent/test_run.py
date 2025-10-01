@@ -16,11 +16,11 @@ def test_run_asgi(
     # Run the command
     result = runner.invoke(
         app,
-        shlex.split("agent run asgi my:app ext-1234-5678 ins-1234-5678-0001.json -w 2 --reload"),
+        shlex.split("agent run asgi my:app ins-1234-5678-0001.json -w 2 --reload"),
     )
     assert result.exit_code == 0
     mocked_ziticorn.assert_called_once_with(
-        "my:app", "ext-1234-5678", "ins-1234-5678-0001.json", workers=2, reload=True
+        "my:app", "ins-1234-5678-0001.json", workers=2, reload=True
     )
 
 
@@ -44,10 +44,10 @@ def test_run_sidecar(
     result = runner.invoke(
         app,
         shlex.split(
-            f"agent run sidecar ext-1234-5678 ins-1234-5678-0001.json {target_addr}  -w 2 --reload",
+            f"agent run sidecar ins-1234-5678-0001.json {target_addr}  -w 2 --reload",
         ),
     )
     assert result.exit_code == 0
     mocked_sidecar.assert_called_once_with(
-        "ext-1234-5678", "ins-1234-5678-0001.json", expected_target_addr, workers=2, reload=True
+        "ins-1234-5678-0001.json", expected_target_addr, workers=2, reload=True
     )

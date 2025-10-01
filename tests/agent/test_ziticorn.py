@@ -18,9 +18,9 @@ def test_run_ziticorn(mocker: MockerFixture):
         return_value=mocked_server,
     )
 
-    ziticorn.run_ziticorn(fake_app, "ziti-service", "ziti-identity.json")
+    ziticorn.run_ziticorn(fake_app, "ziti-identity.json")
 
-    mocked_config_ctor.assert_called_once_with(fake_app, "ziti-service", "ziti-identity.json")
+    mocked_config_ctor.assert_called_once_with(fake_app, "ziti-identity.json")
     mocked_server_ctor.assert_called_once_with(mocked_config)
     mocked_server.run.assert_called_once()
 
@@ -36,12 +36,11 @@ def test_run(mocker: MockerFixture):
         return_value=mocked_master,
     )
 
-    ziticorn.run(fake_app, "ziti-service", "ziti-identity.json", workers=10, reload=True)
+    ziticorn.run(fake_app, "ziti-identity.json", workers=10, reload=True)
 
     mocked_partial.assert_called_once_with(
         ziticorn.run_ziticorn,
         fake_app,
-        "ziti-service",
         "ziti-identity.json",
     )
     mocked_master_ctor.assert_called_once_with(mocked_start_fn, workers=10, reload=True)
