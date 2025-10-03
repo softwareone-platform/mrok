@@ -46,6 +46,7 @@ def settings_factory() -> SettingsFactory:
             PAGINATION=pagination,
             PROXY=proxy,
         )
+
         return settings
 
     return _get_settings

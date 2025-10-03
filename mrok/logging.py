@@ -3,9 +3,15 @@ import logging.config
 from mrok.conf import Settings
 
 
-def get_logging_config(settings: Settings) -> dict:
+def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
     log_level = "DEBUG" if settings.logging.debug else "INFO"
     handler = "rich" if settings.logging.rich else "console"
+
+    if cli_mode:
+        mrok_handler = "cli"
+    else:
+        mrok_handler = handler
+
     logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -18,12 +24,18 @@ def get_logging_config(settings: Settings) -> dict:
                 "format": "{name} {message}",
                 "style": "{",
             },
+            "plain": {"format": "%(message)s"},
         },
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
                 "formatter": "verbose",
                 "stream": "ext://sys.stderr",
+            },
+            "cli": {
+                "class": "logging.StreamHandler",
+                "formatter": "plain",
+                "stream": "ext://sys.stdout",
             },
             "rich": {
                 "class": "rich.logging.RichHandler",
@@ -49,7 +61,7 @@ def get_logging_config(settings: Settings) -> dict:
                 "propagate": False,
             },
             "mrok": {
-                "handlers": [handler],
+                "handlers": [mrok_handler],
                 "level": log_level,
                 "propagate": False,
             },
@@ -59,6 +71,6 @@ def get_logging_config(settings: Settings) -> dict:
     return logging_config
 
 
-def setup_logging(settings: Settings) -> None:
-    logging_config = get_logging_config(settings)
+def setup_logging(settings: Settings, cli_mode: bool = False) -> None:
+    logging_config = get_logging_config(settings, cli_mode)
     logging.config.dictConfig(logging_config)
