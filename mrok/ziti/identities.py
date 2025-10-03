@@ -45,7 +45,17 @@ async def register_instance(
     identity_id = await mgmt_api.create_user_identity(identity_name, tags=tags)
     identity = await mgmt_api.get_identity(identity_id)
 
-    identity_json = await _enroll_identity(mgmt_api, client_api, identity_id, identity)
+    identity_json = await _enroll_identity(
+        mgmt_api,
+        client_api,
+        identity_id,
+        identity,
+        mrok={
+            "identity": identity_name,
+            "extension": extension_id,
+            "instance": instance_id,
+        },
+    )
 
     await mgmt_api.create_bind_service_policy(service_policy_name, service["id"], identity_id)
     await mgmt_api.create_router_policy(identity_name, identity_id)
@@ -97,7 +107,13 @@ async def enroll_proxy_identity(
     return identity_id, identity_json
 
 
-async def _enroll_identity(mgmt_api, client_api, identity_id, identity=None):
+async def _enroll_identity(
+    mgmt_api: ZitiManagementAPI,
+    client_api: ZitiClientAPI,
+    identity_id: str,
+    identity: dict[str, Any] | None = None,
+    mrok: dict[str, str] | None = None,
+):
     if identity is None:
         identity = await mgmt_api.get_identity(identity_id)
 
@@ -113,6 +129,7 @@ async def _enroll_identity(mgmt_api, client_api, identity_id, identity=None):
         pkey_pem,
         certificate_pem,
         ca_pem,
+        mrok=mrok,
     )
 
 
@@ -126,8 +143,9 @@ def _generate_identity_json(
     pkey_pem: str,
     certificate_pem: str,
     ca_pem: str,
+    mrok: dict | None = None,
 ) -> dict[str, Any]:
-    return {
+    identity = {
         "ztAPI": ziti_api_url,
         "ztAPIs": None,
         "configTypes": None,
@@ -138,3 +156,6 @@ def _generate_identity_json(
         },
         "enableHa": False,
     }
+    if mrok:
+        identity["mrok"] = mrok
+    return identity
