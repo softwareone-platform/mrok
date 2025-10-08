@@ -1,7 +1,13 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.ziti.constants import MROK_SERVICE_TAG_NAME, MROK_VERSION_TAG_NAME
+from mrok.ziti.constants import (
+    MROK_IDENTITY_TYPE_TAG_NAME,
+    MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
+    MROK_IDENTITY_TYPE_TAG_VALUE_PROXY,
+    MROK_SERVICE_TAG_NAME,
+    MROK_VERSION_TAG_NAME,
+)
 from mrok.ziti.errors import (
     ProxyIdentityAlreadyExistsError,
     ServiceNotFoundError,
@@ -63,6 +69,7 @@ async def test_register_instance(mocker: MockerFixture):
         tags={
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
             "account": "ACC-1234",
+            MROK_IDENTITY_TYPE_TAG_NAME: MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
         },
     )
     mocked_mgmt_api.get_identity.assert_awaited_once_with("identity-id")
@@ -150,6 +157,7 @@ async def test_register_instance_identity_exists(mocker: MockerFixture):
         tags={
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
             "account": "ACC-1234",
+            MROK_IDENTITY_TYPE_TAG_NAME: MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
         },
     )
     mocked_mgmt_api.get_identity.assert_awaited_once_with("identity-id")
@@ -227,6 +235,7 @@ async def test_register_instance_identity_exists_service_router_doesnt(mocker: M
         tags={
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
             "account": "ACC-1234",
+            MROK_IDENTITY_TYPE_TAG_NAME: MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
         },
     )
     mocked_mgmt_api.get_identity.assert_awaited_once_with("identity-id")
@@ -385,7 +394,8 @@ async def test_enroll_proxy_identity(mocker: MockerFixture):
 
     mocked_mgmt_api.search_identity.assert_awaited_once_with("mrok-proxy")
     mocked_mgmt_api.create_device_identity.assert_awaited_once_with(
-        "mrok-proxy", tags={"test": "tag"}
+        "mrok-proxy",
+        tags={"test": "tag", MROK_IDENTITY_TYPE_TAG_NAME: MROK_IDENTITY_TYPE_TAG_VALUE_PROXY},
     )
     mocked_mgmt_api.get_identity.assert_awaited_once_with("identity-id")
     mocked_jwt_decode.assert_called_once_with(

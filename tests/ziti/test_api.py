@@ -70,10 +70,21 @@ async def test_get(
         url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         json={"data": {"id": "service123", "name": "svc"}},
     )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123/policies",
+        json={"data": {"id": "policy123", "name": "plc"}},
+    )
+
     async with ZitiManagementAPI(settings) as api:
         result = await api.get("/services", "service123")
     assert result["id"] == "service123"
     assert result["name"] == "svc"
+
+    async with ZitiManagementAPI(settings) as api:
+        result = await api.get("/services", "service123", "policies")
+    assert result["id"] == "policy123"
+    assert result["name"] == "plc"
 
 
 @pytest.mark.asyncio
@@ -264,7 +275,7 @@ async def test_iterator_methods(
         method = getattr(api, method_name)
         awaitable = method()
 
-    mocked_collection_iterator.assert_called_once_with(endpoint)
+    mocked_collection_iterator.assert_called_once_with(endpoint, params=None)
     assert awaitable == mocked_awaitable
 
 

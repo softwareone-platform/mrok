@@ -81,8 +81,16 @@ class BaseZitiAPI(ABC):
         response.raise_for_status()
         return response.json()["data"]["id"]
 
-    async def get(self, endpoint: str, id: str) -> dict[str, Any]:
-        response = await self.httpx_client.get(f"{endpoint}/{id}")
+    async def get(
+        self,
+        endpoint: str,
+        id: str,
+        additional_path: str | None = None,
+    ) -> dict[str, Any]:
+        url = f"{endpoint}/{id}"
+        if additional_path:
+            url = f"{url}/{additional_path}"
+        response = await self.httpx_client.get(url)
         response.raise_for_status()
         return response.json()["data"]
 
@@ -258,11 +266,17 @@ class ZitiManagementAPI(BaseZitiAPI):
     def base_url(self):
         return f"{self.settings.ziti.api.management}/edge/management/v1"
 
-    def services(self) -> AsyncGenerator[dict[str, Any], None]:
-        return self.collection_iterator("/services")
+    def services(
+        self,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        return self.collection_iterator("/services", params=params)
 
-    def identities(self) -> AsyncGenerator[dict[str, Any], None]:
-        return self.collection_iterator("/identities")
+    def identities(
+        self,
+        params: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        return self.collection_iterator("/identities", params=params)
 
     async def search_config(self, id_or_name) -> dict[str, Any] | None:
         return await self.search_by_id_or_name("/configs", id_or_name)
