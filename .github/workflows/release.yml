@@ -5,6 +5,7 @@ on:
     types: [published]
 
 permissions:
+  id-token: write  # for OIDC
   contents: read
 
 jobs:
@@ -26,14 +27,14 @@ jobs:
     - name: 'Login to ACR'
       uses: docker/login-action@v3
       with:
-        registry: ${{ vars.REGISTRY_LOGIN_SERVER }}
-        username: ${{ vars.REGISTRY_USERNAME }}
-        password: ${{ secrets.REGISTRY_PASSWORD }}
+        registry: ${{ vars.EXTENSION_REGISTRY_LOGIN_SERVER }}
+        username: ${{ vars.EXTENSION_REGISTRY_USERNAME }}
+        password: ${{ secrets.EXTENSION_REGISTRY_PASSWORD }}
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: ${{ vars.REGISTRY_LOGIN_SERVER }}/ffc-operations
+        images: ${{ vars.EXTENSION_REGISTRY_LOGIN_SERVER }}/ffc-operations
         tags: |
           type=semver,pattern={{major}}.{{minor}}.{{patch}},value=${{ steps.get_version.outputs.VERSION }}
           type=semver,pattern={{major}}.{{minor}},value=${{ steps.get_version.outputs.VERSION }}
@@ -56,3 +57,51 @@ jobs:
       projectName: 'mrok'
     secrets:
       DEPENDENCYTRACK_APIKEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+
+  set-version:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Export tag
+        id: vars
+        run: echo tag=${GITHUB_REF#refs/*/} >> $GITHUB_OUTPUT
+        if: ${{ github.event_name == 'release' }}
+
+      - name: Update project version
+        run: |
+          sed -i "s/^version = \".*\"/version = \"$RELEASE_VERSION\"/" pyproject.toml
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        if: ${{ github.event_name == 'release' }}
+
+      - name: Upload updated pyproject.toml
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyproject-toml
+          path: pyproject.toml
+
+  publish:
+    runs-on: ubuntu-latest
+
+    needs: [ set-version ]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Download updated pyproject.toml
+        uses: actions/download-artifact@v4
+        with:
+          name: pyproject-toml
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://upload.pypi.org/legacy/
