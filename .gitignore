@@ -190,4 +190,3 @@ taplo.toml
 
 # Ignore dynaconf secret files
 .secrets.*
-settings.yaml

@@ -9,11 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
+  docker-image:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
+    needs: [ set-version ]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
