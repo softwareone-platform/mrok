@@ -18,14 +18,8 @@ default_workers = number_of_workers()
 def register(app: typer.Typer) -> None:
     @app.command("asgi")
     def run_asgi(
-        app: str = typer.Argument(
-            ...,
-            help="ASGI application",
-        ),
-        identity_file: Path = typer.Argument(
-            ...,
-            help="Identity json file",
-        ),
+        app: Annotated[str, typer.Argument(..., help="ASGI application")],
+        identity_file: Annotated[Path, typer.Argument(..., help="Identity json file")],
         workers: Annotated[
             int,
             typer.Option(

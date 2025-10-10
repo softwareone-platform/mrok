@@ -2,6 +2,7 @@ import asyncio
 from typing import Any
 
 import pytest
+from pytest_mock import MockerFixture
 
 from mrok.http.forwarder import ASGIReceive, ASGISend, ForwardAppBase
 
@@ -70,7 +71,6 @@ class FakeWriter:
 
 def send_collector(messages: list[dict[str, Any]]) -> ASGISend:
     async def _send(msg: dict[str, Any]) -> None:
-        # keep async signature; no awaits required
         messages.append(msg)
         await asyncio.sleep(0)
 
@@ -90,11 +90,6 @@ def make_receive(events: list[dict[str, Any]]) -> ASGIReceive:
 
 
 class ForwardApp(ForwardAppBase):
-    """Test-local concrete ForwardApp matching the old sidecar ctor signature.
-
-    Tests can subclass this to override select_backend when needed.
-    """
-
     def __init__(self, target_address: str | None = None, read_chunk_size: int = 65536) -> None:
         super().__init__(read_chunk_size=read_chunk_size)
         self._target_address = target_address
@@ -546,3 +541,135 @@ async def test_malformed_header_line_parsing():
     # the body should still be forwarded despite the malformed header line
     assert any(b["body"] == b"xyz" for b in bodies)
     assert bodies[-1]["more_body"] is False
+
+
+@pytest.mark.asyncio
+async def test_lifespan(mocker: MockerFixture):
+    mocked_startup = mocker.patch.object(ForwardApp, "startup")
+    mocked_shutdown = mocker.patch.object(ForwardApp, "shutdown")
+    app = ForwardApp("127.0.0.1:8000")
+
+    sent: list[dict] = []
+    send = send_collector(sent)
+
+    scope = {"type": "lifespan"}
+    receive = make_receive([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
+
+    await app(scope, receive, send)
+
+    assert len(sent) == 2
+    assert sent[0]["type"] == "lifespan.startup.complete"
+    assert sent[1]["type"] == "lifespan.shutdown.complete"
+
+    mocked_startup.assert_awaited_once()
+    mocked_shutdown.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_startup_failed(mocker: MockerFixture):
+    mocker.patch.object(ForwardApp, "startup", side_effect=Exception("startup-failed"))
+    app = ForwardApp("127.0.0.1:8000")
+
+    sent: list[dict] = []
+    send = send_collector(sent)
+
+    scope = {"type": "lifespan"}
+    receive = make_receive([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
+
+    await app(scope, receive, send)
+
+    assert len(sent) == 2
+    assert sent[0]["type"] == "lifespan.startup.failed"
+    assert sent[0]["message"] == "startup-failed"
+    assert sent[1]["type"] == "lifespan.shutdown.complete"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_startup_timeout(mocker: MockerFixture):
+    mocker.patch.object(ForwardApp, "startup", side_effect=TimeoutError())
+    app = ForwardApp("127.0.0.1:8000")
+
+    sent: list[dict] = []
+    send = send_collector(sent)
+
+    scope = {"type": "lifespan"}
+    receive = make_receive([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
+
+    await app(scope, receive, send)
+
+    assert len(sent) == 2
+    assert sent[0]["type"] == "lifespan.startup.failed"
+    assert sent[0]["message"] == "startup timeout"
+    assert sent[1]["type"] == "lifespan.shutdown.complete"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_shutdown_failed(mocker: MockerFixture):
+    mocker.patch.object(ForwardApp, "shutdown", side_effect=Exception("shutdown-failed"))
+    app = ForwardApp("127.0.0.1:8000")
+
+    sent: list[dict] = []
+    send = send_collector(sent)
+
+    scope = {"type": "lifespan"}
+    receive = make_receive([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
+
+    await app(scope, receive, send)
+
+    assert len(sent) == 2
+    assert sent[0]["type"] == "lifespan.startup.complete"
+    assert sent[1]["type"] == "lifespan.shutdown.failed"
+    assert sent[1]["message"] == "shutdown-failed"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_shutdown_timeout(mocker: MockerFixture):
+    mocker.patch.object(ForwardApp, "shutdown", side_effect=TimeoutError())
+    app = ForwardApp("127.0.0.1:8000")
+
+    sent: list[dict] = []
+    send = send_collector(sent)
+
+    scope = {"type": "lifespan"}
+    receive = make_receive([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
+
+    await app(scope, receive, send)
+
+    assert len(sent) == 2
+    assert sent[0]["type"] == "lifespan.startup.complete"
+    assert sent[1]["type"] == "lifespan.shutdown.failed"
+    assert sent[1]["message"] == "shutdown timeout"
+
+
+@pytest.mark.asyncio
+async def test_no_backend_available():
+    class App(ForwardApp):
+        async def select_backend(self, scope, headers):
+            return None, None
+
+    app = App("127.0.0.1:8000")
+
+    # ASGI receive will provide two body chunks
+    events = [
+        {"type": "http.request", "body": b"ab", "more_body": True},
+        {"type": "http.request", "body": b"cd", "more_body": False},
+    ]
+    receive = make_receive(events)
+    sent = []
+    send = send_collector(sent)
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/up",
+        "query_string": b"",
+        "headers": [],
+    }
+
+    await app(scope, receive, send)
+
+    assert len(sent) == 2
+    assert sent[0]["type"] == "http.response.start"
+    assert sent[0]["status"] == 502
+
+    assert sent[1]["type"] == "http.response.body"
+    assert sent[1]["body"] == b"Bad Gateway"
