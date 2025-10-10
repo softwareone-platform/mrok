@@ -31,7 +31,7 @@ async def test_create(
     }
     httpx_mock.add_response(
         method="POST",
-        url=f"{settings.ziti.url}/edge/management/v1/services",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services",
         match_json=expected_body,
         json={"data": {"id": "service123"}},
     )
@@ -49,7 +49,7 @@ async def test_create_bad_request(
     settings = settings_factory()
     httpx_mock.add_response(
         method="POST",
-        url=f"{settings.ziti.url}/edge/management/v1/services",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services",
         status_code=400,
         json=ziti_bad_request_error,
     )
@@ -67,7 +67,7 @@ async def test_get(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services/service123",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         json={"data": {"id": "service123", "name": "svc"}},
     )
     async with ZitiManagementAPI(settings) as api:
@@ -84,7 +84,7 @@ async def test_delete(
     settings = settings_factory()
     httpx_mock.add_response(
         method="DELETE",
-        url=f"{settings.ziti.url}/edge/management/v1/services/service123",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         json={"data": {"deleted": True}},
     )
     async with ZitiManagementAPI(settings) as api:
@@ -97,7 +97,7 @@ async def test_search_by_id_or_name(settings_factory: SettingsFactory, httpx_moc
     query = quote(f'(id="svc" or name="svc") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 1}},
             "data": [{"id": "svc1", "name": "svc"}],
@@ -117,7 +117,7 @@ async def test_search_by_id_or_name_no_results(
     query = quote(f'(id="svc" or name="svc") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 0}},
             "data": [],
@@ -136,7 +136,7 @@ async def test_search_by_id_or_name_bad_request(
     query = quote(f'(id="svc" or name="svc") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?filter={query}",
         status_code=400,
         json=ziti_bad_request_error,
     )
@@ -154,7 +154,7 @@ async def test_collection_iterator(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?limit=5&offset=0",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?limit=5&offset=0",
         json={
             "meta": {"pagination": {"totalCount": 10, "limit": 5, "offset": 0}},
             "data": [{"id": f"svc{i}", "name": "svc"} for i in range(5)],
@@ -162,7 +162,7 @@ async def test_collection_iterator(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?limit=5&offset=5",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?limit=5&offset=5",
         json={
             "meta": {"pagination": {"totalCount": 10, "limit": 5, "offset": 5}},
             "data": [{"id": f"svc{5 + i}", "name": "svc"} for i in range(5)],
@@ -452,7 +452,7 @@ async def test_fetch_ca_certs(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/.well-known/est/cacerts",
+        url=f"{settings.ziti.api.management}/edge/management/v1/.well-known/est/cacerts",
         text="-----BEGIN CERTIFICATE----\n...\n-----END CERTIFICATE-----",
     )
     async with ZitiManagementAPI(settings) as api:
@@ -468,12 +468,12 @@ async def test_password_auth(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services/service123",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         status_code=401,
     )
     httpx_mock.add_response(
         method="POST",
-        url=f"{settings.ziti.url}/edge/management/v1/authenticate?method=password",
+        url=f"{settings.ziti.api.management}/edge/management/v1/authenticate?method=password",
         match_json={
             "username": settings.ziti.auth.username,
             "password": settings.ziti.auth.password,
@@ -483,7 +483,7 @@ async def test_password_auth(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services/service123",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         match_headers={"zt-session": "auth-token"},
         json={"data": {"id": "service123", "name": "svc"}},
     )
@@ -511,7 +511,7 @@ async def test_identity_auth(
 ):
     settings = settings_factory(
         ziti={
-            "url": "https://ziti.example.com",
+            "api": {"management": "https://ziti.example.com"},
             "read_timeout": 10,
             "ssl_verify": True,
             "auth": {"identity": "my-identity.json"},
@@ -520,18 +520,18 @@ async def test_identity_auth(
     mocked_ctx = mocker.patch("mrok.ziti.api.ZitiIdentityAuthContext")
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services/service123",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         status_code=401,
     )
     httpx_mock.add_response(
         method="POST",
-        url=f"{settings.ziti.url}/edge/management/v1/authenticate?method=cert",
+        url=f"{settings.ziti.api.management}/edge/management/v1/authenticate?method=cert",
         status_code=200,
         json={"data": {"token": "auth-token"}},
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services/service123",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services/service123",
         match_headers={"zt-session": "auth-token"},
         json={"data": {"id": "service123", "name": "svc"}},
     )
@@ -567,7 +567,7 @@ async def test_enroll_identity(
     settings = settings_factory()
     httpx_mock.add_response(
         method="POST",
-        url=f"{settings.ziti.url}/edge/client/v1/enroll?method=ott&token=jti",
+        url=f"{settings.ziti.api.client}/edge/client/v1/enroll?method=ott&token=jti",
         status_code=200,
         match_content=b"csr",
         match_headers={"Content-Type": "application/x-pem-file"},
