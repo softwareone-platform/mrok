@@ -25,7 +25,7 @@ async def test_list_extensions(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?limit=5&offset=0",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?limit=5&offset=0",
         json={
             "meta": {"pagination": {"totalCount": 10, "limit": 5, "offset": 0}},
             "data": [{"id": f"svc{i}", "name": "svc"} for i in range(5)],
@@ -33,7 +33,7 @@ async def test_list_extensions(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?limit=5&offset=5",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?limit=5&offset=5",
         json={
             "meta": {"pagination": {"totalCount": 10, "limit": 5, "offset": 5}},
             "data": [{"id": f"svc{5 + i}", "name": "svc"} for i in range(5)],
@@ -147,7 +147,7 @@ async def test_get_extension(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 1}},
             "data": [
@@ -184,7 +184,7 @@ async def test_get_extension_not_found(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/services?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 0}},
             "data": [],

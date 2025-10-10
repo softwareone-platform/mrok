@@ -23,7 +23,10 @@ def settings_factory() -> SettingsFactory:
         proxy: dict | None = None,
     ) -> Settings:
         ziti = ziti or {
-            "url": "https://ziti.example.com",
+            "api": {
+                "management": "https://ziti.example.com",
+                "client": "https://ziti.example.com",
+            },
             "read_timeout": 10,
             "ssl_verify": True,
             "auth": {"username": "user", "password": "pass", "identity": None},

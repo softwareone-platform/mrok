@@ -24,7 +24,7 @@ async def test_list_instances(
     query = quote(f'tags.{MROK_SERVICE_TAG_NAME} = "ext-1234-5678"')
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/identities?filter={query}&limit=5&offset=0",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}&limit=5&offset=0",
         json={
             "meta": {"pagination": {"totalCount": 10, "limit": 5, "offset": 0}},
             "data": [{"id": f"ins{i}", "name": "ins.svc"} for i in range(5)],
@@ -32,7 +32,7 @@ async def test_list_instances(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/identities?filter={query}&limit=5&offset=5",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}&limit=5&offset=5",
         json={
             "meta": {"pagination": {"totalCount": 10, "limit": 5, "offset": 5}},
             "data": [{"id": f"ins{5 + i}", "name": "ins.svc"} for i in range(5)],
@@ -123,7 +123,7 @@ async def test_get_instance(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/identities?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 1}},
             "data": [
@@ -167,7 +167,7 @@ async def test_get_instance_by_instance_id(
     query = quote(f'(id="ins1" or name="ins1") and tags.{MROK_VERSION_TAG_NAME} != null')
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/identities?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 1}},
             "data": [
@@ -214,7 +214,7 @@ async def test_get_instance_not_found(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/identities?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 10}},
             "data": [],
@@ -260,7 +260,7 @@ async def test_delete_extension_not_found(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.url}/edge/management/v1/identities?filter={query}",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}",
         json={
             "meta": {"pagination": {"totalCount": 0}},
             "data": [],

@@ -27,14 +27,14 @@ jobs:
     - name: 'Login to ACR'
       uses: docker/login-action@v3
       with:
-        registry: ${{ vars.EXTENSION_REGISTRY_LOGIN_SERVER }}
-        username: ${{ vars.EXTENSION_REGISTRY_USERNAME }}
-        password: ${{ secrets.EXTENSION_REGISTRY_PASSWORD }}
+        registry: ${{ vars.REGISTRY_LOGIN_SERVER }}
+        username: ${{ vars.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: ${{ vars.EXTENSION_REGISTRY_LOGIN_SERVER }}/ffc-operations
+        images: ${{ vars.REGISTRY_LOGIN_SERVER }}/mrok
         tags: |
           type=semver,pattern={{major}}.{{minor}}.{{patch}},value=${{ steps.get_version.outputs.VERSION }}
           type=semver,pattern={{major}}.{{minor}},value=${{ steps.get_version.outputs.VERSION }}
