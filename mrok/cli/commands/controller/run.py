@@ -1,16 +1,12 @@
-import multiprocessing
 from collections.abc import Callable
 from typing import Annotated, Any
 
 import typer
 from gunicorn.app.base import BaseApplication
 
+from mrok.cli.utils import number_of_workers
 from mrok.controller.app import app as asgi_app
 from mrok.logging import get_logging_config
-
-
-def number_of_workers():
-    return (multiprocessing.cpu_count() * 2) + 1
 
 
 class StandaloneApplication(BaseApplication):  # pragma: no cover

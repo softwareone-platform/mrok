@@ -2,7 +2,7 @@ import abc
 import asyncio
 import logging
 
-from mrok.http.types import ASGIReceive, ASGISend, Scope
+from mrok.http.types import ASGIReceive, ASGISend, Scope, StreamReader, StreamWriter
 
 logger = logging.getLogger("mrok.proxy")
 
@@ -20,17 +20,59 @@ class ForwardAppBase(abc.ABC):
     and streaming logic (requests and responses).
     """
 
-    def __init__(self, read_chunk_size: int = 65536) -> None:
-        # number of bytes to read per iteration when streaming bodies
+    def __init__(
+        self,
+        read_chunk_size: int = 65536,
+        lifespan_timeout: float = 10.0,
+    ) -> None:
         self._read_chunk_size: int = int(read_chunk_size)
+        self._lifespan_timeout = lifespan_timeout
+
+    async def handle_lifespan(self, receive: ASGIReceive, send: ASGISend) -> None:
+        while True:
+            event = await receive()
+            etype = event.get("type")
+
+            if etype == "lifespan.startup":
+                try:
+                    await asyncio.wait_for(self.startup(), self._lifespan_timeout)
+                except TimeoutError:
+                    logger.exception("Lifespan startup timed out")
+                    await send({"type": "lifespan.startup.failed", "message": "startup timeout"})
+                    continue
+                except Exception as e:
+                    logger.exception("Exception during lifespan startup")
+                    await send({"type": "lifespan.startup.failed", "message": str(e)})
+                    continue
+                await send({"type": "lifespan.startup.complete"})
+
+            elif etype == "lifespan.shutdown":
+                try:
+                    await asyncio.wait_for(self.shutdown(), self._lifespan_timeout)
+                except TimeoutError:
+                    logger.exception("Lifespan shutdown timed out")
+                    await send({"type": "lifespan.shutdown.failed", "message": "shutdown timeout"})
+                    return
+                except Exception as exc:
+                    logger.exception("Exception during lifespan shutdown")
+                    await send({"type": "lifespan.shutdown.failed", "message": str(exc)})
+                    return
+                await send({"type": "lifespan.shutdown.complete"})
+                return
 
     @abc.abstractmethod
     async def select_backend(
         self,
         scope: Scope,
         headers: dict[str, str],
-    ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter] | tuple[None, None]:
+    ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
         """Return (reader, writer) connected to the target backend."""
+
+    async def startup(self):
+        return
+
+    async def shutdown(self):
+        return
 
     async def __call__(self, scope: Scope, receive: ASGIReceive, send: ASGISend) -> None:
         """ASGI callable entry point.
@@ -38,6 +80,11 @@ class ForwardAppBase(abc.ABC):
         Delegates to smaller helper methods for readability. Subclasses only
         need to implement backend selection.
         """
+        scope_type = scope.get("type")
+        if scope_type == "lifespan":
+            await self.handle_lifespan(receive, send)
+            return
+
         if scope.get("type") != "http":
             await send({"type": "http.response.start", "status": 500, "headers": []})
             await send({"type": "http.response.body", "body": b"Unsupported"})
@@ -112,7 +159,7 @@ class ForwardAppBase(abc.ABC):
 
     async def write_request_line_and_headers(
         self,
-        writer: asyncio.StreamWriter,
+        writer: StreamWriter,
         method: str,
         path_qs: str,
         headers: list[tuple[bytes, bytes]],
@@ -126,7 +173,7 @@ class ForwardAppBase(abc.ABC):
         await writer.drain()
 
     async def stream_request_body(
-        self, receive: ASGIReceive, writer: asyncio.StreamWriter, use_chunked: bool
+        self, receive: ASGIReceive, writer: StreamWriter, use_chunked: bool
     ) -> None:
         if use_chunked:
             await self.stream_request_chunked(receive, writer)
@@ -134,9 +181,7 @@ class ForwardAppBase(abc.ABC):
 
         await self.stream_request_until_end(receive, writer)
 
-    async def stream_request_chunked(
-        self, receive: ASGIReceive, writer: asyncio.StreamWriter
-    ) -> None:
+    async def stream_request_chunked(self, receive: ASGIReceive, writer: StreamWriter) -> None:
         """Send request body to backend using HTTP/1.1 chunked encoding."""
         while True:
             event = await receive()
@@ -156,9 +201,7 @@ class ForwardAppBase(abc.ABC):
         writer.write(b"0\r\n\r\n")
         await writer.drain()
 
-    async def stream_request_until_end(
-        self, receive: ASGIReceive, writer: asyncio.StreamWriter
-    ) -> None:
+    async def stream_request_until_end(self, receive: ASGIReceive, writer: StreamWriter) -> None:
         """Send request body to backend when content length/transfer-encoding
         already provided (no chunking).
         """
@@ -176,7 +219,7 @@ class ForwardAppBase(abc.ABC):
                 return
 
     async def read_status_and_headers(
-        self, reader: asyncio.StreamReader, first_line: bytes
+        self, reader: StreamReader, first_line: bytes
     ) -> tuple[int, list[tuple[bytes, bytes]], dict[bytes, bytes]]:
         parts = first_line.decode(errors="ignore").split(" ", 2)
         status = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 502
@@ -213,14 +256,14 @@ class ForwardAppBase(abc.ABC):
         except Exception:
             return None
 
-    async def drain_trailers(self, reader: asyncio.StreamReader) -> None:
+    async def drain_trailers(self, reader: StreamReader) -> None:
         """Consume trailer header lines until an empty line is encountered."""
         while True:
             trailer = await reader.readline()
             if trailer in (b"\r\n", b"\n", b""):
                 break
 
-    async def stream_response_chunked(self, reader: asyncio.StreamReader, send: ASGISend) -> None:
+    async def stream_response_chunked(self, reader: StreamReader, send: ASGISend) -> None:
         """Read chunked-encoded response from reader, decode and forward to ASGI send."""
         while True:
             size_line = await reader.readline()
@@ -249,7 +292,7 @@ class ForwardAppBase(abc.ABC):
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     async def stream_response_with_content_length(
-        self, reader: asyncio.StreamReader, send: ASGISend, content_length: int
+        self, reader: StreamReader, send: ASGISend, content_length: int
     ) -> None:
         """Read exactly content_length bytes and forward to ASGI send events."""
         remaining = content_length
@@ -268,7 +311,7 @@ class ForwardAppBase(abc.ABC):
         if not sent_final:
             await send({"type": "http.response.body", "body": b"", "more_body": False})
 
-    async def stream_response_until_eof(self, reader: asyncio.StreamReader, send: ASGISend) -> None:
+    async def stream_response_until_eof(self, reader: StreamReader, send: ASGISend) -> None:
         """Read from reader until EOF and forward chunks to ASGI send events."""
         while True:
             chunk = await reader.read(self._read_chunk_size)
@@ -278,7 +321,7 @@ class ForwardAppBase(abc.ABC):
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     async def stream_response_body(
-        self, reader: asyncio.StreamReader, send: ASGISend, raw_headers: dict[bytes, bytes]
+        self, reader: StreamReader, send: ASGISend, raw_headers: dict[bytes, bytes]
     ) -> None:
         te = raw_headers.get(b"transfer-encoding", b"").lower()
         cl = raw_headers.get(b"content-length")

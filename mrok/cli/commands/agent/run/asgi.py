@@ -1,16 +1,10 @@
-import multiprocessing
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-# from app.logging import get_logging_config
 from mrok.agent import ziticorn
-
-
-def number_of_workers():
-    return (multiprocessing.cpu_count() * 2) + 1
-
+from mrok.cli.utils import number_of_workers
 
 default_workers = number_of_workers()
 
@@ -18,14 +12,8 @@ default_workers = number_of_workers()
 def register(app: typer.Typer) -> None:
     @app.command("asgi")
     def run_asgi(
-        app: str = typer.Argument(
-            ...,
-            help="ASGI application",
-        ),
-        identity_file: Path = typer.Argument(
-            ...,
-            help="Identity json file",
-        ),
+        app: Annotated[str, typer.Argument(..., help="ASGI application")],
+        identity_file: Annotated[Path, typer.Argument(..., help="Identity json file")],
         workers: Annotated[
             int,
             typer.Option(

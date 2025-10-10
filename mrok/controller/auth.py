@@ -80,8 +80,8 @@ async def authenticate(
         )
         return payload
     except jwt.InvalidKeyError as e:
-        logger.error(f"Invalid jwt token: {e}")
+        logger.error(f"Invalid jwt token: {e} ({credentials.credentials})")
         raise UNAUTHORIZED_EXCEPTION
     except jwt.InvalidTokenError as e:
-        logger.error(f"Invalid jwt token: {e}")
+        logger.error(f"Invalid jwt token: {e} ({credentials.credentials})")
         raise UNAUTHORIZED_EXCEPTION
