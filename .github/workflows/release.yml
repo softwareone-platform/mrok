@@ -34,7 +34,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: ${{ vars.REGISTRY_LOGIN_SERVER }}/mrok
+        images: ${{ vars.REGISTRY_LOGIN_SERVER }}/gha/mrok
         tags: |
           type=semver,pattern={{major}}.{{minor}}.{{patch}},value=${{ steps.get_version.outputs.VERSION }}
           type=semver,pattern={{major}}.{{minor}},value=${{ steps.get_version.outputs.VERSION }}
