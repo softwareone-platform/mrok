@@ -54,7 +54,7 @@ class MrokBackendConfig(config.Config):
         if err != 0:
             raise RuntimeError(f"Failed to load Ziti identity from {self.identity_file}: {err}")
 
-        sock = ctx.bind(self.service_name, terminator=self.identity_name)
+        sock = ctx.bind(self.service_name)
         sock.listen(self.backlog)
         logger.info(f"listening on ziti service {self.service_name} for connections")
         return sock
