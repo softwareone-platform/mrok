@@ -51,7 +51,6 @@ def test_backend_config_bind_socket(mocker: MockerFixture, ziti_identity_file: s
     mocked_openziti_load.assert_called_once_with(ziti_identity_file)
     mocked_ctx.bind.assert_called_once_with(
         "ext-1234-5678",
-        terminator="ins-1234-5678-0001.ext-1234-5678",
     )
     mocked_socket.listen.assert_called_once_with(4096)
 
