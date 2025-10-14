@@ -24,9 +24,11 @@ class MrokBackendConfig(config.Config):
         self,
         app: ASGIApplication | Callable[..., Any] | str,
         identity_file: str | Path,
+        ziti_load_timeout_ms: int = 5000,
         backlog: int = 2048,
     ):
         self.identity_file = identity_file
+        self.ziti_load_timeout_ms = ziti_load_timeout_ms
         self.service_name, self.identity_name, self.instance_id = self.get_identity_info(
             identity_file
         )
@@ -50,7 +52,7 @@ class MrokBackendConfig(config.Config):
     def bind_socket(self) -> socket.socket:
         logger.info(f"Connect to Ziti service '{self.service_name} ({self.instance_id})'")
 
-        ctx, err = openziti.load(str(self.identity_file))
+        ctx, err = openziti.load(str(self.identity_file), timeout=self.ziti_load_timeout_ms)
         if err != 0:
             raise RuntimeError(f"Failed to load Ziti identity from {self.identity_file}: {err}")
 

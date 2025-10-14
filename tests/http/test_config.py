@@ -46,9 +46,11 @@ def test_backend_config_bind_socket(mocker: MockerFixture, ziti_identity_file: s
     async def fake_asgi_app(scope, receive, send):
         pass
 
-    config = MrokBackendConfig(fake_asgi_app, ziti_identity_file, backlog=4096)
+    config = MrokBackendConfig(
+        fake_asgi_app, ziti_identity_file, backlog=4096, ziti_load_timeout_ms=1234
+    )
     assert config.bind_socket() == mocked_socket
-    mocked_openziti_load.assert_called_once_with(ziti_identity_file)
+    mocked_openziti_load.assert_called_once_with(ziti_identity_file, timeout=1234)
     mocked_ctx.bind.assert_called_once_with(
         "ext-1234-5678",
     )
