@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 # The uv installer requires curl (and certificates) to download the release archive
 RUN apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates curl vim; \
+    apt-get install -y --no-install-recommends ca-certificates curl vim libprotobuf-c1; \
     apt-get autoremove --purge -y; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
