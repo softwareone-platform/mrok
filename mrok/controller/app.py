@@ -2,10 +2,11 @@ import logging
 from functools import partial
 
 import fastapi_pagination
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.routing import APIRoute, APIRouter
 
 from mrok.conf import get_settings
+from mrok.controller.auth import authenticate
 from mrok.controller.openapi import generate_openapi_spec
 from mrok.controller.routes import router as extensions_router
 
@@ -49,8 +50,7 @@ def setup_app():
 
     # TODO: Add healthcheck
     app.include_router(
-        extensions_router,
-        prefix="/extensions",
+        extensions_router, prefix="/extensions", dependencies=[Depends(authenticate)]
     )
 
     settings = get_settings()
