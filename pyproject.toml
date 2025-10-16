@@ -46,13 +46,14 @@ dev = [
 [project.scripts]
 mrok = "mrok.cli:run"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.uv]
 package = true
 preview = true
 add-bounds = "major"
-
-[tool.setuptools]
-py-modules = ["mrok"]
 
 [tool.ruff]
 line-length = 100
