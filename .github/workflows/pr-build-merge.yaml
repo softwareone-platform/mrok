@@ -12,25 +12,31 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: [ "3.12", "3.13", "3.14" ]
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Install libprotobuf-c1
         run: sudo apt install -y libprotobuf-c1
+
       - name: Install uv and set up its cache
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install Python
+      - name: Install Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version-file: ".python-version"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install the project dependancies
         run: uv sync --all-extras --dev
@@ -46,6 +52,37 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install libprotobuf-c1
+        run: sudo apt install -y libprotobuf-c1
+
+      - name: Install uv and set up its cache
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install the project dependancies
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest
+
       - name: Compute added/removed lines for notification
         if: ${{ github.event_name == 'pull_request' }}
         id: diff
@@ -57,6 +94,7 @@ jobs:
           echo "deletions=$DELETIONS" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Notify Microsoft Teams
         if: ${{ github.event_name == 'pull_request' }}
         uses: softwareone-platform/notify-pr-teams-action@v4

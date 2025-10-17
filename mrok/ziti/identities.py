@@ -5,7 +5,12 @@ import jwt
 
 from mrok.ziti import pki
 from mrok.ziti.api import TagsType, ZitiClientAPI, ZitiManagementAPI
-from mrok.ziti.constants import MROK_SERVICE_TAG_NAME
+from mrok.ziti.constants import (
+    MROK_IDENTITY_TYPE_TAG_NAME,
+    MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
+    MROK_IDENTITY_TYPE_TAG_VALUE_PROXY,
+    MROK_SERVICE_TAG_NAME,
+)
 from mrok.ziti.errors import (
     ProxyIdentityAlreadyExistsError,
     ServiceNotFoundError,
@@ -25,6 +30,7 @@ async def register_instance(
     service_name = extension_id.lower()
     tags = tags or {}
     tags[MROK_SERVICE_TAG_NAME] = service_name
+    tags[MROK_IDENTITY_TYPE_TAG_NAME] = MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE
     service = await mgmt_api.search_service(service_name)
     if not service:
         raise ServiceNotFoundError(f"A service with name `{extension_id}` does not exists.")
@@ -100,6 +106,8 @@ async def enroll_proxy_identity(
         raise ProxyIdentityAlreadyExistsError(
             f"A proxy identity with name `{identity_name}` already exists."
         )
+    tags = tags or {}
+    tags[MROK_IDENTITY_TYPE_TAG_NAME] = MROK_IDENTITY_TYPE_TAG_VALUE_PROXY
     identity_id = await mgmt_api.create_device_identity(identity_name, tags=tags)
     identity_json = await _enroll_identity(mgmt_api, client_api, identity_id)
     logger.info(f"Enrolled proxy identity '{identity_name}'")
