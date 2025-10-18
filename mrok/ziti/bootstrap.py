@@ -19,18 +19,26 @@ async def bootstrap_identity(
 
     identity_json = None
     existing_identity = await mgmt_api.search_identity(identity_name)
+    policy = await mgmt_api.search_router_policy(identity_name)
+    config_type_name = f"{mode}.proxy.v1"
+    config_type = await mgmt_api.search_config_type(config_type_name)
 
     if forced and existing_identity:
         logger.info(f"Deleting existing identity '{identity_name}' ({existing_identity['id']})")
 
-        policy = await mgmt_api.search_router_policy(identity_name)
         if policy:
             await mgmt_api.delete_router_policy(policy["id"])
             logger.info(f"Deleted existing ERP '{policy['name']}' ({policy['id']})")
+            policy = None
 
         await mgmt_api.delete_identity(existing_identity["id"])
         logger.info("Deleted existing identity")
         existing_identity = None
+
+    if forced and config_type:
+        await mgmt_api.delete_config_type(config_type["id"])
+        logger.info(f"Deleted existing config type '{config_type_name}' ({config_type['id']})")
+        config_type = None
 
     if existing_identity:
         frontend_id = existing_identity["id"]
@@ -44,7 +52,6 @@ async def bootstrap_identity(
         )
         logger.info(f"Identity '{identity_name}' ({frontend_id}) successfully enrolled")
 
-    policy = await mgmt_api.search_router_policy(identity_name)
     if not policy:
         policy_id = await mgmt_api.create_router_policy(
             identity_name,
@@ -55,8 +62,6 @@ async def bootstrap_identity(
     else:
         logger.info(f"Found ERP '{policy['name']}' ({policy['id']})")
 
-    config_type_name = f"{mode}.proxy.v1"
-    config_type = await mgmt_api.search_config_type(config_type_name)
     if config_type is None:
         config_type_id = await mgmt_api.create_config_type(config_type_name, tags=tags)
         logger.info(f"Created '{config_type_name}' ({config_type_id}) config type")

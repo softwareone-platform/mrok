@@ -397,6 +397,9 @@ class ZitiManagementAPI(BaseZitiAPI):
     async def search_config_type(self, id_or_name: str) -> dict[str, Any] | None:
         return await self.search_by_id_or_name("/config-types", id_or_name)
 
+    async def delete_config_type(self, config_type_id: str) -> dict[str, Any] | None:
+        return await self.delete("/config-types", config_type_id)
+
     async def get_identity(self, identity_id: str) -> dict[str, Any]:
         return await self.get("/identities", identity_id)
 

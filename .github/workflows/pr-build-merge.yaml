@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install the project dependancies
+      - name: Install the project dependencies
         run: uv sync --all-extras --dev
 
       - name: Run formatting checks
@@ -77,7 +77,7 @@ jobs:
         with:
           python-version-file: ".python-version"
 
-      - name: Install the project dependancies
+      - name: Install the project dependencies
         run: uv sync --all-extras --dev
 
       - name: Run tests

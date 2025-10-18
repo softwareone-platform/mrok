@@ -236,6 +236,7 @@ async def test_search_methods(
     ("method_name", "endpoint"),
     [
         ("delete_config", "/configs"),
+        ("delete_config_type", "/config-types"),
         ("delete_service_policy", "/service-policies"),
         ("delete_service_router_policy", "/service-edge-router-policies"),
         ("delete_router_policy", "/edge-router-policies"),
