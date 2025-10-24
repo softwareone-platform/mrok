@@ -8,7 +8,8 @@ from fastapi.routing import APIRoute, APIRouter
 from mrok.conf import get_settings
 from mrok.controller.auth import authenticate
 from mrok.controller.openapi import generate_openapi_spec
-from mrok.controller.routes import router as extensions_router
+from mrok.controller.routes.extensions import router as extensions_router
+from mrok.controller.routes.instances import router as instances_router
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ def setup_app():
     app.include_router(
         extensions_router, prefix="/extensions", dependencies=[Depends(authenticate)]
     )
+    app.include_router(instances_router, prefix="/instances", dependencies=[Depends(authenticate)])
 
     settings = get_settings()
 
