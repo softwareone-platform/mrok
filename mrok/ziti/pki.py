@@ -1,9 +1,9 @@
 import base64
 
+from asn1crypto import cms
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.serialization.pkcs7 import load_der_pkcs7_certificates
 from cryptography.x509.oid import NameOID
 
 from mrok.ziti.api import ZitiManagementAPI
@@ -16,11 +16,16 @@ async def get_ca_certificates(mgmt_api: ZitiManagementAPI) -> str:
     if not _ca_certificates:
         cas_pkcs7 = await mgmt_api.fetch_ca_certificates()
         pkcs7_bytes = base64.b64decode(cas_pkcs7)
-        pkcs7_certs = load_der_pkcs7_certificates(pkcs7_bytes)
+
+        content_info = cms.ContentInfo.load(pkcs7_bytes)
+        certs = content_info["content"]["certificates"]
+
         ca_certificates = []
-        for cert in pkcs7_certs:
-            cert_pem = cert.public_bytes(serialization.Encoding.PEM)
-            ca_certificates.append(cert_pem.decode("utf-8"))
+        for cert in certs:
+            crypt_cert = x509.load_der_x509_certificate(cert.dump())
+            pem = crypt_cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")
+            ca_certificates.append(pem)
+
         _ca_certificates = "\n".join(ca_certificates)
     return _ca_certificates
 
