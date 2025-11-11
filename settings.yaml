@@ -25,3 +25,8 @@ auth:
 
 pagination:
   limit: 50
+
+sidecar:
+  textual_port: 4040
+  store_port: 5051
+  store_size: 1000

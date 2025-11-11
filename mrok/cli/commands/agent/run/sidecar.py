@@ -5,11 +5,9 @@ from typing import Annotated
 import typer
 
 from mrok.agent import sidecar
-
-
-def number_of_workers():
-    return (multiprocessing.cpu_count() * 2) + 1
-
+from mrok.agent.sidecar.store import RequestStore, RequestStoreManager
+from mrok.cli.commands.agent.utils import number_of_workers, run_inspect_api, run_textual
+from mrok.conf import get_settings
 
 default_workers = number_of_workers()
 
@@ -43,6 +41,15 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = False,
+        inspect: Annotated[
+            bool,
+            typer.Option(
+                "--inspect",
+                "-i",
+                help="Enable inspection. Default: False",
+                show_default=True,
+            ),
+        ] = False,
     ):
         """Run a Sidecar Proxy to expose a web application through OpenZiti."""
         if ":" in str(target):
@@ -51,4 +58,41 @@ def register(app: typer.Typer) -> None:
         else:
             target_addr = str(target)  # type: ignore
 
-        sidecar.run(str(identity_file), target_addr, workers=workers, reload=reload)
+        if inspect:
+            settings = get_settings()
+
+            RequestStoreManager.register("RequestStore", RequestStore)
+            with RequestStoreManager() as manager:
+                request_store = manager.RequestStore()  # type: ignore
+
+                api_proc = multiprocessing.Process(
+                    target=run_inspect_api,
+                    args=(request_store, settings.sidecar.store_port),
+                    daemon=True,
+                )
+                api_proc.start()
+                textual_proc = multiprocessing.Process(
+                    target=run_textual,
+                    args=(settings.sidecar.textual_port,),
+                    daemon=True,
+                )
+                textual_proc.start()
+                typer.echo(f"Inspector running at http://localhost:{settings.sidecar.textual_port}")
+
+                try:
+                    sidecar.run(
+                        str(identity_file),
+                        target_addr,
+                        workers=workers,
+                        reload=reload,
+                        store=request_store,
+                    )
+                finally:
+                    if textual_proc:
+                        textual_proc.terminate()
+                        typer.echo("Inspector stopped")
+                    if api_proc:
+                        api_proc.terminate()
+                        typer.echo("Inspector store stopped")
+        else:
+            sidecar.run(str(identity_file), target_addr, workers=workers, reload=reload)
