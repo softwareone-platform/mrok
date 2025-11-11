@@ -8,21 +8,18 @@ from typing import Any
 import openziti
 from uvicorn import config
 
-from mrok.conf import get_settings
 from mrok.http.protocol import MrokHttpToolsProtocol
-from mrok.logging import setup_logging
+from mrok.http.types import ASGIApp
 
 logger = logging.getLogger("mrok.proxy")
 
 config.LIFESPAN["auto"] = "mrok.http.lifespan:MrokLifespan"
 
-ASGIApplication = config.ASGIApplication
-
 
 class MrokBackendConfig(config.Config):
     def __init__(
         self,
-        app: ASGIApplication | Callable[..., Any] | str,
+        app: ASGIApp | Callable[..., Any] | str,
         identity_file: str | Path,
         ziti_load_timeout_ms: int = 5000,
         backlog: int = 2048,
@@ -62,4 +59,4 @@ class MrokBackendConfig(config.Config):
         return sock
 
     def configure_logging(self) -> None:
-        setup_logging(get_settings())
+        return
