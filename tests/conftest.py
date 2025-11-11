@@ -25,6 +25,7 @@ def settings_factory() -> SettingsFactory:
         pagination: dict | None = None,
         proxy: dict | None = None,
         auth: dict | None = None,
+        sidecar: dict | None = None,
     ) -> Settings:
         ziti = ziti or {
             "api": {
@@ -50,6 +51,12 @@ def settings_factory() -> SettingsFactory:
             "mode": "zrok",
             "domain": "exts.s1.today",
         }
+        sidecar = sidecar or {
+            "textual_port": 4040,
+            "store_port": 5051,
+            "store_size": 1000,
+            "textual_command": "python mrok/agent/sidecar/inspector.py",
+        }
         settings = Dynaconf(
             environments=True,
             settings_files=[],
@@ -59,6 +66,7 @@ def settings_factory() -> SettingsFactory:
             PAGINATION=pagination,
             PROXY=proxy,
             AUTH=auth,
+            SIDECAR=sidecar,
         )
 
         return settings

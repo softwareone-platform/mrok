@@ -1,15 +1,12 @@
-import multiprocessing
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from mrok.agent import sidecar
-
-
-def number_of_workers():
-    return (multiprocessing.cpu_count() * 2) + 1
-
+from mrok.cli.commands.agent.utils import (
+    number_of_workers,
+)
 
 default_workers = number_of_workers()
 
@@ -34,15 +31,30 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = default_workers,
-        reload: Annotated[
-            bool,
+        publishers_port: Annotated[
+            int,
             typer.Option(
-                "--reload",
-                "-r",
-                help="Enable auto-reload. Default: False",
+                "--publishers-port",
+                "-p",
+                help=(
+                    "TCP port where the mrok agent "
+                    "should connect to publish to request/response messages."
+                ),
                 show_default=True,
             ),
-        ] = False,
+        ] = 50000,
+        subscribers_port: Annotated[
+            int,
+            typer.Option(
+                "--subscribers-port",
+                "-s",
+                help=(
+                    "TCP port where the mrok agent should listen for incoming subscribers "
+                    "connections for request/response messages."
+                ),
+                show_default=True,
+            ),
+        ] = 50001,
     ):
         """Run a Sidecar Proxy to expose a web application through OpenZiti."""
         if ":" in str(target):
@@ -51,4 +63,10 @@ def register(app: typer.Typer) -> None:
         else:
             target_addr = str(target)  # type: ignore
 
-        sidecar.run(str(identity_file), target_addr, workers=workers, reload=reload)
+        sidecar.run(
+            str(identity_file),
+            target_addr,
+            workers=workers,
+            publishers_port=publishers_port,
+            subscribers_port=subscribers_port,
+        )
