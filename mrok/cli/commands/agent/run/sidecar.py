@@ -3,15 +3,24 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich.panel import Panel
 
 from mrok.agent import sidecar
-
-
-def number_of_workers():
-    return (multiprocessing.cpu_count() * 2) + 1
-
+from mrok.agent.sidecar.store import RequestStore, RequestStoreManager
+from mrok.cli.commands.agent.utils import (
+    get_textual_command,
+    inspector_port,
+    number_of_workers,
+    run_inspect_api,
+    run_textual,
+    store_api_port,
+)
+from mrok.cli.rich import get_console
+from mrok.conf import get_settings
 
 default_workers = number_of_workers()
+default_inspector_port = inspector_port()
+default_store_port = store_api_port()
 
 
 def register(app: typer.Typer) -> None:
@@ -43,6 +52,32 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = False,
+        inspect: Annotated[
+            bool,
+            typer.Option(
+                "--inspect",
+                "-i",
+                help="Enable inspection. Default: False",
+                show_default=True,
+            ),
+        ] = False,
+        textual_port: Annotated[
+            int,
+            typer.Option(
+                "--inspector-port",
+                help=f"Port for Web inspector. Default: {default_inspector_port}",
+                show_default=True,
+            ),
+        ] = default_inspector_port,
+        console_mode: Annotated[
+            bool,
+            typer.Option(
+                "--console",
+                "-c",
+                help="Enable inspector console mode. Default: False",
+                show_default=True,
+            ),
+        ] = False,
     ):
         """Run a Sidecar Proxy to expose a web application through OpenZiti."""
         if ":" in str(target):
@@ -51,4 +86,55 @@ def register(app: typer.Typer) -> None:
         else:
             target_addr = str(target)  # type: ignore
 
-        sidecar.run(str(identity_file), target_addr, workers=workers, reload=reload)
+        if inspect:
+            settings = get_settings()
+            console = get_console()
+
+            RequestStoreManager.register("RequestStore", RequestStore)
+            with RequestStoreManager() as manager:
+                request_store = manager.RequestStore()  # type: ignore
+
+                if console_mode:
+                    inspector_proc = multiprocessing.Process(
+                        target=run_inspect_api,
+                        args=(request_store, settings.sidecar.store_port),
+                        daemon=True,
+                    )
+                    inspector_proc.start()
+                    console.print(
+                        Panel(
+                            f"[bold yellow]To open inspector, run in a new terminal:"
+                            f"[/bold yellow]\n[bold green]{get_textual_command()}[/bold green]",
+                            title="mrok Inspector",
+                            border_style="cyan",
+                        )
+                    )
+                else:
+                    inspector_proc = multiprocessing.Process(
+                        target=run_textual,
+                        args=(textual_port, settings.sidecar.store_port, request_store),
+                        daemon=True,
+                    )
+                    inspector_proc.start()
+                    console.print(
+                        Panel(
+                            f"Web inspector running at http://localhost:{textual_port}",
+                            title="mrok Web Inspector",
+                            border_style="cyan",
+                        )
+                    )
+
+                try:
+                    sidecar.run(
+                        str(identity_file),
+                        target_addr,
+                        workers=workers,
+                        reload=reload,
+                        store=request_store,
+                    )
+                finally:
+                    if inspector_proc:
+                        inspector_proc.terminate()
+                        console.print("mrok Inspector stopped")
+        else:
+            sidecar.run(str(identity_file), target_addr, workers=workers, reload=reload)

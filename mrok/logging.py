@@ -1,5 +1,9 @@
 import logging.config
 
+from rich.console import Console
+from rich.logging import RichHandler
+from textual_serve.server import LogHighlighter
+
 from mrok.conf import Settings
 
 
@@ -74,3 +78,21 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
 def setup_logging(settings: Settings, cli_mode: bool = False) -> None:
     logging_config = get_logging_config(settings, cli_mode)
     logging.config.dictConfig(logging_config)
+
+
+def setup_inspector_logging(console: Console) -> None:
+    logging.basicConfig(
+        level="WARNING",
+        format="%(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            RichHandler(
+                show_path=False,
+                show_time=True,
+                rich_tracebacks=True,
+                tracebacks_show_locals=True,
+                highlighter=LogHighlighter(),
+                console=console,
+            )
+        ],
+    )

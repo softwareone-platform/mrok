@@ -51,3 +51,39 @@ def test_run_sidecar(
     mocked_sidecar.assert_called_once_with(
         "ins-1234-5678-0001.json", expected_target_addr, workers=2, reload=True
     )
+
+
+@pytest.mark.parametrize(
+    "console_mode",
+    [
+        " -c",
+        "",
+    ],
+)
+def test_run_sidecar_with_inspector(
+    mocker: MockerFixture,
+    console_mode: str,
+):
+    mocked_run = mocker.patch("mrok.cli.commands.agent.run.sidecar.sidecar.run")
+
+    mocked_proc = mocker.MagicMock()
+    mocker.patch(
+        "mrok.cli.commands.agent.run.sidecar.multiprocessing.Process", return_value=mocked_proc
+    )
+
+    runner = CliRunner()
+
+    # Run the command
+    result = runner.invoke(
+        app,
+        shlex.split(
+            f"agent run sidecar ins-1234-5678-0001.json :8000 -w 1 -i {console_mode}",
+        ),
+    )
+    assert result.exit_code == 0
+
+    mocked_proc.start.assert_called_once()
+    mocked_proc.terminate.assert_called_once()
+
+    # check RequestStore isn't empty
+    assert mocked_run.call_args[1]["store"] is not None

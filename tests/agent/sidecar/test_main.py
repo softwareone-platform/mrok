@@ -27,7 +27,7 @@ def test_run_sidecar(mocker: MockerFixture, target_addr: str | tuple[str, int]):
     main.run_sidecar("ziti-identity.json", target_addr)
 
     mocked_config_ctor.assert_called_once_with(mocked_app, "ziti-identity.json")
-    mocked_app_ctor.assert_called_once_with(target_addr)
+    mocked_app_ctor.assert_called_once_with(target_addr, store=None)
     mocked_server_ctor.assert_called_once_with(mocked_config)
     mocked_server.run.assert_called_once()
 
@@ -48,6 +48,7 @@ def test_run(mocker: MockerFixture):
         main.run_sidecar,
         "ziti-identity.json",
         "target-addr",
+        None,
     )
     mocked_master_ctor.assert_called_once_with(mocked_start_fn, workers=10, reload=True)
     mocked_master.run.assert_called_once()
