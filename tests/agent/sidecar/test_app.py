@@ -5,6 +5,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from mrok.agent.sidecar.app import ASGIReceive, ASGISend, ForwardApp
+from mrok.agent.sidecar.store import RequestStore
 
 
 class FakeReader:
@@ -111,3 +112,30 @@ async def test_select_backend_paths(mocker: MockerFixture):
     app_unix = ForwardApp("/tmp/sock")
     r2, w2 = await app_unix.select_backend({}, {})
     assert isinstance(r2, FakeReader)
+
+
+@pytest.mark.asyncio
+async def test_on_response_complete():
+    data = {
+        "scope": {
+            "method": "GET",
+            "path": "/",
+            "raw_path": "/",
+            "query_string": b"",
+        },
+        "request_buffer": bytearray(),
+        "response_buffer": bytearray(),
+        "status": 200,
+        "headers": [],
+        "headers_out": [],
+        "start_time": 123,
+    }
+
+    app = ForwardApp(("127.0.0.1", 9000), store=RequestStore())
+    assert app._store is not None
+    assert len(app._store.get_all()) == 0
+    await app.on_response_complete(**data)
+
+    app = ForwardApp(("127.0.0.1", 9000))
+    await app.on_response_complete(**data)
+    assert app._store is None

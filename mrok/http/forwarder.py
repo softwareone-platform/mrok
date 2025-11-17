@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -27,6 +28,7 @@ class ForwardAppBase(abc.ABC):
     def __init__(self, read_chunk_size: int = 65536) -> None:
         # number of bytes to read per iteration when streaming bodies
         self._read_chunk_size: int = int(read_chunk_size)
+        self.capture_body = False
 
     @abc.abstractmethod
     async def select_backend(
@@ -42,6 +44,10 @@ class ForwardAppBase(abc.ABC):
         Delegates to smaller helper methods for readability. Subclasses only
         need to implement backend selection.
         """
+        start_time = time.time()
+        request_buffer = bytearray() if self.capture_body else None
+        response_buffer = bytearray() if self.capture_body else None
+
         if scope.get("type") != "http":
             await send({"type": "http.response.start", "status": 500, "headers": []})
             await send({"type": "http.response.body", "body": b"Unsupported"})
@@ -65,7 +71,7 @@ class ForwardAppBase(abc.ABC):
 
         await self.write_request_line_and_headers(writer, method, path_qs, headers)
 
-        await self.stream_request_body(receive, writer, use_chunked)
+        await self.stream_request_body(receive, writer, use_chunked, request_buffer)
 
         status_line = await reader.readline()
         if not status_line:
@@ -79,7 +85,17 @@ class ForwardAppBase(abc.ABC):
 
         await send({"type": "http.response.start", "status": status, "headers": headers_out})
 
-        await self.stream_response_body(reader, send, raw_headers)
+        await self.stream_response_body(reader, send, raw_headers, response_buffer)
+
+        await self.on_response_complete(
+            scope,
+            status,
+            headers,
+            headers_out,
+            start_time,
+            request_buffer,
+            response_buffer,
+        )
 
         writer.close()
         await writer.wait_closed()
@@ -130,16 +146,23 @@ class ForwardAppBase(abc.ABC):
         await writer.drain()
 
     async def stream_request_body(
-        self, receive: ASGIReceive, writer: asyncio.StreamWriter, use_chunked: bool
+        self,
+        receive: ASGIReceive,
+        writer: asyncio.StreamWriter,
+        use_chunked: bool,
+        request_buffer: bytearray | None = None,
     ) -> None:
         if use_chunked:
-            await self.stream_request_chunked(receive, writer)
+            await self.stream_request_chunked(receive, writer, request_buffer)
             return
 
-        await self.stream_request_until_end(receive, writer)
+        await self.stream_request_until_end(receive, writer, request_buffer)
 
     async def stream_request_chunked(
-        self, receive: ASGIReceive, writer: asyncio.StreamWriter
+        self,
+        receive: ASGIReceive,
+        writer: asyncio.StreamWriter,
+        request_buffer: bytearray | None = None,
     ) -> None:
         """Send request body to backend using HTTP/1.1 chunked encoding."""
         while True:
@@ -151,6 +174,9 @@ class ForwardAppBase(abc.ABC):
                     writer.write(body)
                     writer.write(b"\r\n")
                     await writer.drain()
+
+                    if request_buffer is not None:
+                        request_buffer.extend(body)
                 if not event.get("more_body", False):
                     break
             elif event["type"] == "http.disconnect":
@@ -161,7 +187,10 @@ class ForwardAppBase(abc.ABC):
         await writer.drain()
 
     async def stream_request_until_end(
-        self, receive: ASGIReceive, writer: asyncio.StreamWriter
+        self,
+        receive: ASGIReceive,
+        writer: asyncio.StreamWriter,
+        request_buffer: bytearray | None = None,
     ) -> None:
         """Send request body to backend when content length/transfer-encoding
         already provided (no chunking).
@@ -173,6 +202,9 @@ class ForwardAppBase(abc.ABC):
                 if body:
                     writer.write(body)
                     await writer.drain()
+
+                    if request_buffer is not None:
+                        request_buffer.extend(body)
                 if not event.get("more_body", False):
                     break
             elif event["type"] == "http.disconnect":
@@ -224,7 +256,12 @@ class ForwardAppBase(abc.ABC):
             if trailer in (b"\r\n", b"\n", b""):
                 break
 
-    async def stream_response_chunked(self, reader: asyncio.StreamReader, send: ASGISend) -> None:
+    async def stream_response_chunked(
+        self,
+        reader: asyncio.StreamReader,
+        send: ASGISend,
+        response_buffer: bytearray | None = None,
+    ) -> None:
         """Read chunked-encoded response from reader, decode and forward to ASGI send."""
         while True:
             size_line = await reader.readline()
@@ -249,11 +286,17 @@ class ForwardAppBase(abc.ABC):
             except Exception:
                 logger.warning("failed to read CRLF after chunk from backend")
             await send({"type": "http.response.body", "body": chunk, "more_body": True})
+            if response_buffer is not None:
+                response_buffer.extend(chunk)
 
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     async def stream_response_with_content_length(
-        self, reader: asyncio.StreamReader, send: ASGISend, content_length: int
+        self,
+        reader: asyncio.StreamReader,
+        send: ASGISend,
+        content_length: int,
+        response_buffer: bytearray | None = None,
     ) -> None:
         """Read exactly content_length bytes and forward to ASGI send events."""
         remaining = content_length
@@ -266,34 +309,61 @@ class ForwardAppBase(abc.ABC):
             remaining -= len(chunk)
             more = remaining > 0
             await send({"type": "http.response.body", "body": chunk, "more_body": more})
+            if response_buffer is not None:
+                response_buffer.extend(chunk)
             if not more:
                 sent_final = True
 
         if not sent_final:
             await send({"type": "http.response.body", "body": b"", "more_body": False})
 
-    async def stream_response_until_eof(self, reader: asyncio.StreamReader, send: ASGISend) -> None:
+    async def stream_response_until_eof(
+        self,
+        reader: asyncio.StreamReader,
+        send: ASGISend,
+        response_buffer: bytearray | None = None,
+    ) -> None:
         """Read from reader until EOF and forward chunks to ASGI send events."""
         while True:
             chunk = await reader.read(self._read_chunk_size)
             if not chunk:
                 break
             await send({"type": "http.response.body", "body": chunk, "more_body": True})
+            if response_buffer is not None:
+                response_buffer.extend(chunk)
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     async def stream_response_body(
-        self, reader: asyncio.StreamReader, send: ASGISend, raw_headers: dict[bytes, bytes]
+        self,
+        reader: asyncio.StreamReader,
+        send: ASGISend,
+        raw_headers: dict[bytes, bytes],
+        response_buffer: bytearray | None = None,
     ) -> None:
         te = raw_headers.get(b"transfer-encoding", b"").lower()
         cl = raw_headers.get(b"content-length")
 
         if self.is_chunked(te):
-            await self.stream_response_chunked(reader, send)
+            await self.stream_response_chunked(reader, send, response_buffer)
             return
 
         content_length = self.parse_content_length(cl)
         if content_length is not None:
-            await self.stream_response_with_content_length(reader, send, content_length)
+            await self.stream_response_with_content_length(
+                reader, send, content_length, response_buffer
+            )
             return
 
-        await self.stream_response_until_eof(reader, send)
+        await self.stream_response_until_eof(reader, send, response_buffer)
+
+    async def on_response_complete(
+        self,
+        scope: Scope,
+        status: int,
+        raw_headers: list[tuple[bytes, bytes]],
+        headers_out: list[tuple[bytes, bytes]],
+        start_time: float,
+        request_buffer: bytearray | None,
+        response_buffer: bytearray | None,
+    ) -> None:
+        return
