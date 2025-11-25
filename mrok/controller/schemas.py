@@ -1,4 +1,6 @@
-from typing import Annotated, Any
+from __future__ import annotations
+
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -34,6 +36,7 @@ class ExtensionBase(BaseSchema):
 
 class ExtensionRead(BaseSchema, IdSchema):
     name: str
+    instances: list[InstanceRead] | None = None
 
     @computed_field
     def extension(self) -> dict:
@@ -51,6 +54,11 @@ class InstanceBase(BaseSchema):
 class InstanceRead(BaseSchema, IdSchema):
     name: str
     identity: dict[str, Any] | None = None
+    has_edge_router_connection: bool | None = Field(
+        False,
+        alias="hasEdgeRouterConnection",
+        exclude=True,
+    )
 
     @computed_field
     def instance(self) -> dict:
@@ -61,6 +69,10 @@ class InstanceRead(BaseSchema, IdSchema):
     def extension(self) -> dict:
         _, extension_id = self.name.split(".", 1)
         return {"id": extension_id.upper()}
+
+    @computed_field
+    def status(self) -> Literal["online", "offline"]:
+        return "online" if bool(self.has_edge_router_connection) else "offline"
 
 
 class InstanceCreate(InstanceBase):

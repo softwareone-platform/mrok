@@ -6,6 +6,7 @@ from mrok.controller.dependencies import ZitiManagementAPI
 from mrok.controller.openapi import examples
 from mrok.controller.pagination import LimitOffsetPage, paginate
 from mrok.controller.schemas import InstanceRead
+from mrok.ziti.constants import MROK_IDENTITY_TYPE_TAG_NAME, MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE
 
 logger = logging.getLogger("mrok.controller")
 
@@ -68,4 +69,7 @@ async def get_instance_by_id_or_instance_id(
 async def get_instances(
     mgmt_api: ZitiManagementAPI,
 ):
-    return await paginate(mgmt_api, "/identities", InstanceRead)
+    params = {
+        "filter": f'tags.{MROK_IDENTITY_TYPE_TAG_NAME}="{MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE}"'
+    }
+    return await paginate(mgmt_api, "/identities", InstanceRead, extra_params=params)

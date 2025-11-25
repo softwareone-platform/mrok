@@ -51,9 +51,15 @@ def setup_app():
 
     # TODO: Add healthcheck
     app.include_router(
-        extensions_router, prefix="/extensions", dependencies=[Depends(authenticate)]
+        extensions_router,
+        prefix="/extensions",
+        dependencies=[Depends(authenticate)],
     )
-    app.include_router(instances_router, prefix="/instances", dependencies=[Depends(authenticate)])
+    app.include_router(
+        instances_router,
+        prefix="/instances",
+        dependencies=[Depends(authenticate)],
+    )
 
     settings = get_settings()
 

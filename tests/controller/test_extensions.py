@@ -305,6 +305,7 @@ async def test_register_instance(mocker: MockerFixture, api_client: AsyncClient)
         "extension": {"id": "EXT-1234-5678"},
         "instance": {"id": "INS-1234-5678-0001"},
         "name": "ins-1234-5678-0001.ext-1234-5678",
+        "status": "offline",
         "tags": {
             MROK_VERSION_TAG_NAME: "0.0.0.dev0",
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
@@ -321,11 +322,13 @@ async def test_register_instance(mocker: MockerFixture, api_client: AsyncClient)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["online", "offline"])
 async def test_get_instance(
     mocker: MockerFixture,
     settings_factory: SettingsFactory,
     api_client: AsyncClient,
     httpx_mock: HTTPXMock,
+    status: str,
 ):
     mocker.patch(
         "mrok.controller.routes.extensions.fetch_extension_or_404",
@@ -349,6 +352,7 @@ async def test_get_instance(
                         MROK_VERSION_TAG_NAME: "0.0.0.dev0",
                         MROK_SERVICE_TAG_NAME: "ext-1234-5678",
                     },
+                    "hasEdgeRouterConnection": status == "online",
                 }
             ],
         },
@@ -361,6 +365,7 @@ async def test_get_instance(
         "extension": {"id": "EXT-1234-5678"},
         "instance": {"id": "INS-1234-5678-0001"},
         "name": "ins-1234-5678-0001.ext-1234-5678",
+        "status": status,
         "tags": {
             MROK_VERSION_TAG_NAME: "0.0.0.dev0",
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
@@ -369,11 +374,13 @@ async def test_get_instance(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["online", "offline"])
 async def test_get_instance_by_instance_id(
     mocker: MockerFixture,
     settings_factory: SettingsFactory,
     api_client: AsyncClient,
     httpx_mock: HTTPXMock,
+    status: str,
 ):
     mocker.patch(
         "mrok.controller.routes.extensions.fetch_extension_or_404",
@@ -390,6 +397,7 @@ async def test_get_instance_by_instance_id(
                 {
                     "id": "ins1",
                     "name": "ins-1234-5678-0001.ext-1234-5678",
+                    "hasEdgeRouterConnection": status == "online",
                     "tags": {
                         MROK_VERSION_TAG_NAME: "0.0.0.dev0",
                         MROK_SERVICE_TAG_NAME: "ext-1234-5678",
@@ -406,6 +414,7 @@ async def test_get_instance_by_instance_id(
         "extension": {"id": "EXT-1234-5678"},
         "instance": {"id": "INS-1234-5678-0001"},
         "name": "ins-1234-5678-0001.ext-1234-5678",
+        "status": status,
         "tags": {
             MROK_VERSION_TAG_NAME: "0.0.0.dev0",
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
@@ -487,3 +496,54 @@ async def test_delete_instance_extension_not_found(
 
     response = await api_client.delete("/extensions/EXT-1234-5678/instances/INS-1234-5678-0001")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status", "expected_instance"),
+    [("online", "ins1.svc"), ("offline", "ins2.svc")],
+)
+async def test_get_extension_with_instances(
+    settings_factory: SettingsFactory,
+    api_client: AsyncClient,
+    httpx_mock: HTTPXMock,
+    status: str,
+    expected_instance: str,
+):
+    settings = settings_factory()
+    query = quote(
+        f'(id="EXT-1234-5678" or name="ext-1234-5678") and tags.{MROK_VERSION_TAG_NAME} != null'
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{settings.ziti.api.management}/edge/management/v1/services?filter={query}",
+        json={
+            "meta": {"pagination": {"totalCount": 1}},
+            "data": [
+                {
+                    "id": "svc1",
+                    "name": "ext-1234-5678",
+                    "tags": {MROK_VERSION_TAG_NAME: "0.0.0.dev0"},
+                }
+            ],
+        },
+    )
+
+    query = quote(f'tags.{MROK_SERVICE_TAG_NAME} = "ext-1234-5678"')
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter={query}&limit=5&offset=0",
+        json={
+            "meta": {"pagination": {"totalCount": 2, "limit": 5, "offset": 0}},
+            "data": [
+                {"id": "ins1", "name": "ins1.svc", "hasEdgeRouterConnection": True},
+                {"id": "ins2", "name": "ins2.svc", "hasEdgeRouterConnection": False},
+            ],
+        },
+    )
+
+    response = await api_client.get(f"/extensions/EXT-1234-5678?with_instances={status}")
+    assert response.status_code == 200
+    ext = response.json()
+    assert len(ext["instances"]) == 1
+    assert ext["instances"][0]["name"] == expected_instance
