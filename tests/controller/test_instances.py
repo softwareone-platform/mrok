@@ -17,7 +17,7 @@ async def test_list_instances(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.api.management}/edge/management/v1/identities?&limit=10&offset=0",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter=tags.mrok-identity-type%3D%22instance%22&limit=10&offset=0",
         json={
             "meta": {"pagination": {"totalCount": 15, "limit": 10, "offset": 0}},
             "data": [{"id": f"ins{i}", "name": "ins.svc"} for i in range(10)],
@@ -25,7 +25,7 @@ async def test_list_instances(
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{settings.ziti.api.management}/edge/management/v1/identities?&limit=10&offset=10",
+        url=f"{settings.ziti.api.management}/edge/management/v1/identities?filter=tags.mrok-identity-type%3D%22instance%22&limit=10&offset=10",
         json={
             "meta": {"pagination": {"totalCount": 15, "limit": 10, "offset": 10}},
             "data": [{"id": f"ins{i}", "name": "ins.svc"} for i in range(11, 16)],
@@ -49,10 +49,12 @@ async def test_list_instances(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["online", "offline"])
 async def test_get_instance(
     settings_factory: SettingsFactory,
     api_client: AsyncClient,
     httpx_mock: HTTPXMock,
+    status: str,
 ):
     settings = settings_factory()
     query = quote(
@@ -68,6 +70,7 @@ async def test_get_instance(
                 {
                     "id": "ins1",
                     "name": "ins-1234-1234-0001.ext-1234-1234",
+                    "hasEdgeRouterConnection": status == "online",
                     "tags": {
                         MROK_VERSION_TAG_NAME: "0.0.0.dev0",
                         MROK_SERVICE_TAG_NAME: "ext-1234-1234",
@@ -85,6 +88,7 @@ async def test_get_instance(
         "extension": {"id": "EXT-1234-1234"},
         "instance": {"id": "INS-1234-1234-0001"},
         "name": "ins-1234-1234-0001.ext-1234-1234",
+        "status": status,
         "tags": {
             MROK_VERSION_TAG_NAME: "0.0.0.dev0",
             MROK_SERVICE_TAG_NAME: "ext-1234-1234",
@@ -93,10 +97,12 @@ async def test_get_instance(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["online", "offline"])
 async def test_get_instance_by_instance_id(
     settings_factory: SettingsFactory,
     api_client: AsyncClient,
     httpx_mock: HTTPXMock,
+    status: str,
 ):
     settings = settings_factory()
     query = quote(f'(id="ins1" or name="ins1") and tags.{MROK_VERSION_TAG_NAME} != null')
@@ -109,6 +115,7 @@ async def test_get_instance_by_instance_id(
                 {
                     "id": "ins1",
                     "name": "ins-1234-1234-0001.ext-1234-1234",
+                    "hasEdgeRouterConnection": status == "online",
                     "tags": {
                         MROK_VERSION_TAG_NAME: "0.0.0.dev0",
                         MROK_SERVICE_TAG_NAME: "ext-1234-1234",
@@ -125,6 +132,7 @@ async def test_get_instance_by_instance_id(
         "extension": {"id": "EXT-1234-1234"},
         "instance": {"id": "INS-1234-1234-0001"},
         "name": "ins-1234-1234-0001.ext-1234-1234",
+        "status": status,
         "tags": {
             MROK_VERSION_TAG_NAME: "0.0.0.dev0",
             MROK_SERVICE_TAG_NAME: "ext-1234-1234",

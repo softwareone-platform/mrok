@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, HTTPException, status
 
@@ -116,8 +116,26 @@ async def create_extension(
 async def get_extension_by_id_or_extension_id(
     mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
+    with_instances: Literal["none", "online", "offline"] = "none",
 ):
-    return ExtensionRead(**(await fetch_extension_or_404(mgmt_api, id_or_extension_id)))
+    extension = await fetch_extension_or_404(mgmt_api, id_or_extension_id)
+
+    if with_instances == "none":
+        return ExtensionRead(**extension)
+
+    instances = list(
+        filter(
+            lambda ir: ir.status == with_instances,
+            [
+                InstanceRead(**identity)
+                async for identity in mgmt_api.identities(
+                    {"filter": f'tags.{MROK_SERVICE_TAG_NAME} = "{extension["name"]}"'}
+                )
+            ],
+        )
+    )
+
+    return ExtensionRead(**extension, instances=instances)
 
 
 @router.delete(
@@ -272,11 +290,7 @@ async def get_instance_by_id_or_instance_id(
     id_or_instance_id: str,
 ):
     identity = await fetch_instance_or_404(mgmt_api, id_or_extension_id, id_or_instance_id)
-    return InstanceRead(
-        id=identity["id"],
-        name=identity["name"],
-        tags=identity["tags"],
-    )
+    return InstanceRead(**identity)
 
 
 @router.delete(
