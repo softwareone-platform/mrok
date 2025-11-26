@@ -162,8 +162,8 @@ def test_list_instances_command(
 ):
     settings = settings_factory()
     mocker.patch("mrok.cli.main.get_settings", return_value=settings)
-
-    mock_get = mocker.AsyncMock(
+    mock_get = mocker.patch(
+        "mrok.cli.commands.admin.list.instances.get_instances",
         return_value=[
             {
                 "id": "idt",
@@ -171,14 +171,11 @@ def test_list_instances_command(
                 "tags": [],
                 "services": [],
                 "policies": [],
+                "hasEdgeRouterConnection": False,
                 "createdAt": "2025-10-13T09:51:06.175Z",
                 "updatedAt": "2025-10-13T09:51:06.175Z",
             },
         ],
-    )
-    mocker.patch(
-        "mrok.cli.commands.admin.list.instances.get_instances",
-        new=mock_get,
     )
 
     runner = CliRunner()
@@ -187,9 +184,8 @@ def test_list_instances_command(
         app,
         shlex.split(f"admin list instances {output} {detailed}"),
     )
-
     assert result.exit_code == 0
-    mock_get.assert_called_once_with(settings, detailed == "-d", None, None)
+    mock_get.assert_called_once_with(settings, detailed == "-d", None, None, False)
 
 
 def test_list_instances_command_with_tag(
@@ -213,30 +209,7 @@ def test_list_instances_command_with_tag(
     )
 
     assert "No instances found" in result.output
-    mock_get.assert_called_once_with(settings, False, None, ["mytag=v1"])
-
-
-@pytest.mark.asyncio
-async def test_list_instances(settings_factory: SettingsFactory, httpx_mock: HTTPXMock):
-    settings = settings_factory()
-    tag_filter = f'tags.{MROK_IDENTITY_TYPE_TAG_NAME}="{MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE}"'
-    url = f"{settings.ziti.api.management}/edge/management/v1/identities"
-
-    httpx_mock.add_response(
-        method="GET",
-        url=f"{url}?filter={tag_filter}&limit=5&offset=0",
-        json={
-            "meta": {"pagination": {"totalCount": 1, "limit": 5, "offset": 0}},
-            "data": [{"id": "idt", "name": "identity"}],
-        },
-    )
-
-    instances = await get_instances(settings, False)
-    assert len(instances) == 1
-    assert instances[0] == {
-        "id": "idt",
-        "name": "identity",
-    }
+    mock_get.assert_called_once_with(settings, False, None, ["mytag=v1"], False)
 
 
 @pytest.mark.asyncio
@@ -280,4 +253,52 @@ async def test_list_instances_with_extension_filter(
         "name": "identity",
         "services": [{"id": "svc", "name": "svc"}],
         "policies": [{"id": "plc", "name": "svc-policy"}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_instances_with_online_only_filter(
+    settings_factory: SettingsFactory,
+    httpx_mock: HTTPXMock,
+):
+    settings = settings_factory()
+    tag_filter = f'tags.{MROK_IDENTITY_TYPE_TAG_NAME}="{MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE}"'
+    url = f"{settings.ziti.api.management}/edge/management/v1/identities"
+
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{url}?filter={tag_filter}&limit=5&offset=0",
+        json={
+            "meta": {"pagination": {"totalCount": 2, "limit": 5, "offset": 0}},
+            "data": [
+                {"id": "idt", "name": "identity", "hasEdgeRouterConnection": True},
+                {"id": "idt2", "name": "identity", "hasEdgeRouterConnection": False},
+            ],
+        },
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{url}/idt/services?limit=5&offset=0",
+        json={
+            "meta": {"pagination": {"totalCount": 1, "limit": 5, "offset": 0}},
+            "data": [{"id": "svc", "name": "svc"}],
+        },
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{url}/idt/service-policies?limit=5&offset=0",
+        json={
+            "meta": {"pagination": {"totalCount": 1, "limit": 5, "offset": 0}},
+            "data": [{"id": "plc", "name": "svc-policy"}],
+        },
+    )
+
+    instances = await get_instances(settings, False, "svc", online_only=True)
+    assert len(instances) == 1
+    assert instances[0] == {
+        "id": "idt",
+        "name": "identity",
+        "services": [{"id": "svc", "name": "svc"}],
+        "policies": [{"id": "plc", "name": "svc-policy"}],
+        "hasEdgeRouterConnection": True,
     }
