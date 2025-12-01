@@ -59,7 +59,7 @@ async def test_list_extensions(
 @pytest.mark.asyncio
 async def test_register_extension(mocker: MockerFixture, api_client: AsyncClient):
     mocked_register = mocker.patch(
-        "mrok.controller.routes.extensions.register_extension",
+        "mrok.controller.routes.extensions.register_service",
         return_value={
             "id": "a1b2cd",
             "name": "ext-1234-5678",
@@ -97,7 +97,7 @@ async def test_register_extension(mocker: MockerFixture, api_client: AsyncClient
 @pytest.mark.asyncio
 async def test_register_extension_already_exists(mocker: MockerFixture, api_client: AsyncClient):
     mocker.patch(
-        "mrok.controller.routes.extensions.register_extension",
+        "mrok.controller.routes.extensions.register_service",
         side_effect=ServiceAlreadyRegisteredError("Extension `EXT-1234-5678` already registered."),
     )
 
@@ -120,7 +120,7 @@ async def test_register_extension_mrok_not_configured(
     exc_type: MrokError,
 ):
     mocker.patch(
-        "mrok.controller.routes.extensions.register_extension",
+        "mrok.controller.routes.extensions.register_service",
         side_effect=exc_type("this is the error."),  # type: ignore
     )
 
@@ -201,7 +201,7 @@ async def test_delete_extension(
     api_client: AsyncClient,
 ):
     mocker.patch(
-        "mrok.controller.routes.extensions.unregister_extension",
+        "mrok.controller.routes.extensions.unregister_service",
     )
 
     response = await api_client.delete("/extensions/EXT-1234-5678")
@@ -214,7 +214,7 @@ async def test_delete_extension_not_found(
     api_client: AsyncClient,
 ):
     mocker.patch(
-        "mrok.controller.routes.extensions.unregister_extension",
+        "mrok.controller.routes.extensions.unregister_service",
         side_effect=ServiceNotFoundError("not found"),
     )
 
@@ -275,7 +275,7 @@ async def test_register_instance(mocker: MockerFixture, api_client: AsyncClient)
         return_value={"name": "ext-1234-5678"},
     )
     mocked_register = mocker.patch(
-        "mrok.controller.routes.extensions.register_instance",
+        "mrok.controller.routes.extensions.register_identity",
         return_value=(
             {
                 "id": "a1b2cd",
@@ -314,11 +314,12 @@ async def test_register_instance(mocker: MockerFixture, api_client: AsyncClient)
         "identity": {"identity": "json"},
     }
     assert mocked_register.call_count == 1
-    assert isinstance(mocked_register.mock_calls[0].args[0], ZitiManagementAPI)
-    assert isinstance(mocked_register.mock_calls[0].args[1], ZitiClientAPI)
-    assert mocked_register.mock_calls[0].args[2] == "ext-1234-5678"
-    assert mocked_register.mock_calls[0].args[3] == "INS-1234-5678-0001"
-    assert mocked_register.mock_calls[0].args[4] == {"account": "ACC-1234-5678"}
+    assert isinstance(mocked_register.mock_calls[0].args[0], LazySettings)
+    assert isinstance(mocked_register.mock_calls[0].args[1], ZitiManagementAPI)
+    assert isinstance(mocked_register.mock_calls[0].args[2], ZitiClientAPI)
+    assert mocked_register.mock_calls[0].args[3] == "ext-1234-5678"
+    assert mocked_register.mock_calls[0].args[4] == "INS-1234-5678-0001"
+    assert mocked_register.mock_calls[0].args[5] == {"account": "ACC-1234-5678"}
 
 
 @pytest.mark.asyncio
@@ -461,7 +462,7 @@ async def test_delete_instance(
         return_value={"name": "ins-1234-5678.ext-1234-5678"},
     )
     mocker.patch(
-        "mrok.controller.routes.extensions.unregister_instance",
+        "mrok.controller.routes.extensions.unregister_identity",
     )
 
     response = await api_client.delete("/extensions/EXT-1234-5678/instances/INS-1234-5678-0001")

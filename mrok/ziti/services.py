@@ -13,10 +13,10 @@ from mrok.ziti.errors import (
 logger = logging.getLogger(__name__)
 
 
-async def register_extension(
-    settings: Settings, mgmt_api: ZitiManagementAPI, extension_id: str, tags: TagsType | None
+async def register_service(
+    settings: Settings, mgmt_api: ZitiManagementAPI, external_id: str, tags: TagsType | None
 ) -> dict[str, Any]:
-    service_name = extension_id.lower()
+    service_name = external_id.lower()
     registered = False
     proxy_identity = await mgmt_api.search_identity(settings.proxy.identity)
     if not proxy_identity:
@@ -58,17 +58,17 @@ async def register_extension(
         await mgmt_api.create_service_router_policy(service_name, service_id, tags=tags)
         registered = True
     if not registered:
-        raise ServiceAlreadyRegisteredError(f"Extension `{extension_id}` already registered.")
+        raise ServiceAlreadyRegisteredError(f"Service `{external_id}` already registered.")
     return service
 
 
-async def unregister_extension(
-    settings: Settings, mgmt_api: ZitiManagementAPI, extension_id: str
+async def unregister_service(
+    settings: Settings, mgmt_api: ZitiManagementAPI, external_id: str
 ) -> None:
-    service_name = extension_id.lower()
+    service_name = external_id.lower()
     service = await mgmt_api.search_service(service_name)
     if not service:
-        raise ServiceNotFoundError(f"Extension `{extension_id}` not found.")
+        raise ServiceNotFoundError(f"Service `{external_id}` not found.")
 
     router_policy = await mgmt_api.search_service_router_policy(service_name)
     if router_policy:

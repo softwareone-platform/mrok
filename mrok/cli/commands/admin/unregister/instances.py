@@ -5,14 +5,14 @@ import typer
 
 from mrok.conf import Settings
 from mrok.ziti.api import ZitiManagementAPI
-from mrok.ziti.identities import unregister_instance
+from mrok.ziti.identities import unregister_identity
 
 RE_EXTENSION_ID = re.compile(r"(?i)EXT-\d{4}-\d{4}")
 
 
 async def do_unregister(settings: Settings, extension_id: str, instance_id: str):
     async with ZitiManagementAPI(settings) as api:
-        await unregister_instance(api, extension_id, instance_id)
+        await unregister_identity(settings, api, extension_id, instance_id)
 
 
 def validate_extension_id(extension_id: str):

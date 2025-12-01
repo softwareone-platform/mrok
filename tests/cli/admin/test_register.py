@@ -73,7 +73,7 @@ async def test_do_register_extension(mocker: MockerFixture, settings_factory: Se
         return_value=mocked_api,
     )
     mocked_register_service = mocker.patch(
-        "mrok.cli.commands.admin.register.extensions.register_extension"
+        "mrok.cli.commands.admin.register.extensions.register_service"
     )
 
     await do_register_extension(settings, "EXT-1234", ["tag=value"])
@@ -162,12 +162,17 @@ async def test_do_register_instance(mocker: MockerFixture, settings_factory: Set
         return_value=mocked_cli_api,
     )
     mocked_register_instance = mocker.patch(
-        "mrok.cli.commands.admin.register.instances.register_instance",
+        "mrok.cli.commands.admin.register.instances.register_identity",
     )
 
     await do_register_instance(settings, "EXT-1234", "INS-1234-0001", ["tag=value"])
     mocked_register_instance.assert_awaited_once_with(
-        mocked_mgmt_api, mocked_cli_api, "EXT-1234", "INS-1234-0001", tags={"tag": "value"}
+        settings,
+        mocked_mgmt_api,
+        mocked_cli_api,
+        "EXT-1234",
+        "INS-1234-0001",
+        tags={"tag": "value"},
     )
     mocked_mgmt_api_ctor.assert_called_once_with(settings)
     mocked_cli_api_ctor.assert_called_once_with(settings)

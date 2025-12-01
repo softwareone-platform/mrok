@@ -5,8 +5,8 @@ proxy:
 
 ziti:
   api:
-    client: https://ziti.exts.s1.today:80
-    management: https://ziti.exts.s1.today:80
+    client: https://192.168.64.233:8444
+    management: https://192.168.64.233:8443
   read_timeout: 30
   ssl_verify: False
   auth:

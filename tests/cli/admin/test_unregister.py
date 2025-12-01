@@ -69,7 +69,7 @@ async def test_do_unregister_extension(mocker: MockerFixture, settings_factory: 
         return_value=mocked_api,
     )
     mocked_unregister_service = mocker.patch(
-        "mrok.cli.commands.admin.unregister.extensions.unregister_extension"
+        "mrok.cli.commands.admin.unregister.extensions.unregister_service"
     )
 
     await do_unregister_extension(settings, "EXT-1234")
@@ -144,11 +144,12 @@ async def test_do_unregister_instance(mocker: MockerFixture, settings_factory: S
         return_value=mocked_api,
     )
     mocked_unregister_service = mocker.patch(
-        "mrok.cli.commands.admin.unregister.instances.unregister_instance"
+        "mrok.cli.commands.admin.unregister.instances.unregister_identity"
     )
 
     await do_unregister_instance(settings, "EXT-1234", "INS-1234-0001")
     mocked_unregister_service.assert_awaited_once_with(
+        settings,
         mocked_api,
         "EXT-1234",
         "INS-1234-0001",
