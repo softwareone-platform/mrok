@@ -8,14 +8,14 @@ from rich import print
 from mrok.cli.commands.admin.utils import parse_tags
 from mrok.conf import Settings
 from mrok.ziti.api import ZitiManagementAPI
-from mrok.ziti.services import register_extension
+from mrok.ziti.services import register_service
 
 RE_EXTENSION_ID = re.compile(r"(?i)EXT-\d{4}-\d{4}")
 
 
 async def do_register(settings: Settings, extension_id: str, tags: list[str] | None):
     async with ZitiManagementAPI(settings) as api:
-        await register_extension(settings, api, extension_id, tags=parse_tags(tags))
+        await register_service(settings, api, extension_id, tags=parse_tags(tags))
 
 
 def validate_extension_id(extension_id: str) -> str:

@@ -1,8 +1,10 @@
+import copy
 import logging
 from typing import Any
 
 import jwt
 
+from mrok.conf import Settings
 from mrok.ziti import pki
 from mrok.ziti.api import TagsType, ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.constants import (
@@ -16,31 +18,37 @@ from mrok.ziti.errors import (
     ServiceNotFoundError,
     UserIdentityNotFoundError,
 )
+from mrok.ziti.services import register_service, unregister_service
 
 logger = logging.getLogger("mrok.ziti")
 
 
-async def register_instance(
+async def register_identity(
+    settings: Settings,
     mgmt_api: ZitiManagementAPI,
     client_api: ZitiClientAPI,
-    extension_id: str,
-    instance_id: str,
+    service_external_id: str,
+    identity_external_id: str,
     tags: TagsType | None = None,
 ):
-    service_name = extension_id.lower()
-    tags = tags or {}
-    tags[MROK_SERVICE_TAG_NAME] = service_name
-    tags[MROK_IDENTITY_TYPE_TAG_NAME] = MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE
+    service_name = service_external_id.lower()
+    identity_tags = copy.copy(tags or {})
+    identity_tags[MROK_SERVICE_TAG_NAME] = service_name
+    identity_tags[MROK_IDENTITY_TYPE_TAG_NAME] = MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE
     service = await mgmt_api.search_service(service_name)
     if not service:
-        raise ServiceNotFoundError(f"A service with name `{extension_id}` does not exists.")
+        raise ServiceNotFoundError(f"A service with name `{service_external_id}` does not exists.")
 
-    identity_name = f"{instance_id.lower()}.{service_name}"
+    identity_name = f"{identity_external_id.lower()}.{service_name}"
     service_policy_name = f"{identity_name}:bind"
+    self_service_policy_name = f"self.{service_policy_name}"
 
     identity = await mgmt_api.search_identity(identity_name)
     if identity:
         service_policy = await mgmt_api.search_service_policy(service_policy_name)
+        if service_policy:
+            await mgmt_api.delete_service_policy(service_policy["id"])
+        service_policy = await mgmt_api.search_service_policy(self_service_policy_name)
         if service_policy:
             await mgmt_api.delete_service_policy(service_policy["id"])
         router_policy = await mgmt_api.search_router_policy(identity_name)
@@ -48,7 +56,7 @@ async def register_instance(
             await mgmt_api.delete_router_policy(router_policy["id"])
         await mgmt_api.delete_identity(identity["id"])
 
-    identity_id = await mgmt_api.create_user_identity(identity_name, tags=tags)
+    identity_id = await mgmt_api.create_user_identity(identity_name, tags=identity_tags)
     identity = await mgmt_api.get_identity(identity_id)
 
     identity_json = await _enroll_identity(
@@ -58,33 +66,53 @@ async def register_instance(
         identity,
         mrok={
             "identity": identity_name,
-            "extension": extension_id,
-            "instance": instance_id,
+            "extension": service_external_id,
+            "instance": identity_external_id,
         },
     )
 
+    self_service = await mgmt_api.search_service(identity_name)
+    if not self_service:
+        self_service = await register_service(settings, mgmt_api, identity_name, tags)
+
     await mgmt_api.create_bind_service_policy(service_policy_name, service["id"], identity_id)
+    await mgmt_api.create_bind_service_policy(
+        self_service_policy_name,
+        self_service["id"],
+        identity_id,
+    )
     await mgmt_api.create_router_policy(identity_name, identity_id)
 
     return identity, identity_json
 
 
-async def unregister_instance(
+async def unregister_identity(
+    settings: Settings,
     mgmt_api: ZitiManagementAPI,
-    extension_id: str,
-    instance_id: str,
+    service_external_id: str,
+    identity_external_id: str,
 ):
-    service_name = extension_id.lower()
+    service_name = service_external_id.lower()
     service = await mgmt_api.search_service(service_name)
     if not service:
-        raise ServiceNotFoundError(f"A service with name `{extension_id}` does not exists.")
+        raise ServiceNotFoundError(f"A service with name `{service_external_id}` does not exists.")
 
-    identity_name = f"{instance_id.lower()}.{service_name}"
+    identity_name = f"{identity_external_id.lower()}.{service_name}"
     service_policy_name = f"{identity_name}:bind"
 
     identity = await mgmt_api.search_identity(identity_name)
     if not identity:
-        raise UserIdentityNotFoundError(f"Instance `{instance_id}` not found.")
+        raise UserIdentityNotFoundError(f"Identity `{identity_external_id}` not found.")
+
+    self_service_policy_name = f"self.{service_policy_name}"
+
+    service_policy = await mgmt_api.search_service_policy(self_service_policy_name)
+    if service_policy:
+        await mgmt_api.delete_service_policy(service_policy["id"])
+
+    self_service = await mgmt_api.search_service(identity_name)
+    if self_service:
+        await unregister_service(settings, mgmt_api, identity_name)
 
     service_policy = await mgmt_api.search_service_policy(service_policy_name)
     if service_policy:

@@ -13,11 +13,13 @@ from mrok.ziti.errors import (
     ServiceNotFoundError,
     UserIdentityNotFoundError,
 )
-from mrok.ziti.identities import enroll_proxy_identity, register_instance, unregister_instance
+from mrok.ziti.identities import enroll_proxy_identity, register_identity, unregister_identity
+from tests.conftest import SettingsFactory
 
 
 @pytest.mark.asyncio
-async def test_register_instance(mocker: MockerFixture):
+async def test_register_instance(mocker: MockerFixture, settings_factory: SettingsFactory):
+    settings = settings_factory()
     mocked_jwt_decode = mocker.patch(
         "mrok.ziti.identities.jwt.decode", return_value={"jti": "jti-value"}
     )
@@ -25,8 +27,11 @@ async def test_register_instance(mocker: MockerFixture):
         "mrok.ziti.identities.pki.get_ca_certificates",
         return_value="ca-certificates-chain",
     )
+    mocked_register_service = mocker.patch(
+        "mrok.ziti.identities.register_service", return_value={"id": "self-service-id"}
+    )
     mocked_mgmt_api = mocker.AsyncMock()
-    mocked_mgmt_api.search_service.return_value = {"id": "svc1"}
+    mocked_mgmt_api.search_service.side_effect = [{"id": "svc1"}, None]
     mocked_mgmt_api.search_identity.return_value = None
     mocked_mgmt_api.create_user_identity.return_value = "identity-id"
     mocked_mgmt_api.get_identity.return_value = {
@@ -44,7 +49,8 @@ async def test_register_instance(mocker: MockerFixture):
     mocked_client_api.base_url = "https://ziti.api"
     mocked_client_api.enroll_identity.return_value = {"data": {"cert": "identity-certificate"}}
 
-    identity, identity_json = await register_instance(
+    identity, identity_json = await register_identity(
+        settings,
         mocked_mgmt_api,
         mocked_client_api,
         "EXT-1234-5678",
@@ -62,7 +68,11 @@ async def test_register_instance(mocker: MockerFixture):
         "enrollment": {"ott": {"jwt": "enroll-jwt-token"}},
     }
 
-    mocked_mgmt_api.search_service.assert_awaited_once_with("ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
+    assert (
+        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
+    )
+
     mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
     mocked_mgmt_api.create_user_identity.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678",
@@ -90,9 +100,21 @@ async def test_register_instance(mocker: MockerFixture):
     assert identity_json["id"]["cert"] == "pem:identity-certificate"
     assert identity_json["id"]["ca"] == "pem:ca-certificates-chain"
 
-    mocked_mgmt_api.create_bind_service_policy.assert_awaited_once_with(
+    mocked_register_service.assert_called_once_with(
+        settings,
+        mocked_mgmt_api,
+        "ins-1234-5678-0001.ext-1234-5678",
+        {"account": "ACC-1234"},
+    )
+
+    assert mocked_mgmt_api.create_bind_service_policy.mock_calls[0].args == (
         "ins-1234-5678-0001.ext-1234-5678:bind",
         "svc1",
+        "identity-id",
+    )
+    assert mocked_mgmt_api.create_bind_service_policy.mock_calls[1].args == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind",
+        "self-service-id",
         "identity-id",
     )
     mocked_mgmt_api.create_router_policy.assert_awaited_once_with(
@@ -102,14 +124,18 @@ async def test_register_instance(mocker: MockerFixture):
 
 
 @pytest.mark.asyncio
-async def test_register_instance_service_not_found(mocker: MockerFixture):
+async def test_register_instance_service_not_found(
+    mocker: MockerFixture, settings_factory: SettingsFactory
+):
+    settings = settings_factory()
     mocked_mgmt_api = mocker.AsyncMock()
     mocked_mgmt_api.search_service.return_value = None
 
     mocked_client_api = mocker.AsyncMock()
 
     with pytest.raises(ServiceNotFoundError) as cv:
-        await register_instance(
+        await register_identity(
+            settings,
             mocked_mgmt_api,
             mocked_client_api,
             "EXT-1234-5678",
@@ -121,7 +147,11 @@ async def test_register_instance_service_not_found(mocker: MockerFixture):
 
 
 @pytest.mark.asyncio
-async def test_register_instance_identity_exists(mocker: MockerFixture):
+async def test_register_instance_identity_exists(
+    mocker: MockerFixture,
+    settings_factory: SettingsFactory,
+):
+    settings = settings_factory()
     mocked_jwt_decode = mocker.patch(
         "mrok.ziti.identities.jwt.decode", return_value={"jti": "jti-value"}
     )
@@ -129,10 +159,16 @@ async def test_register_instance_identity_exists(mocker: MockerFixture):
         "mrok.ziti.identities.pki.get_ca_certificates",
         return_value="ca-certificates-chain",
     )
+    mocked_register_service = mocker.patch(
+        "mrok.ziti.identities.register_service", return_value={"id": "self-service-id"}
+    )
     mocked_mgmt_api = mocker.AsyncMock()
-    mocked_mgmt_api.search_service.return_value = {"id": "svc1"}
+    mocked_mgmt_api.search_service.side_effect = [{"id": "svc1"}, {"id": "self-service-id"}]
     mocked_mgmt_api.search_identity.return_value = {"id": "identity-id"}
-    mocked_mgmt_api.search_service_policy.return_value = {"id": "service-policy-id"}
+    mocked_mgmt_api.search_service_policy.side_effect = [
+        {"id": "service-policy-id"},
+        {"id": "self-service-policy-id"},
+    ]
     mocked_mgmt_api.search_router_policy.return_value = {"id": "router-policy-id"}
 
     mocked_mgmt_api.create_user_identity.return_value = "identity-id"
@@ -142,7 +178,8 @@ async def test_register_instance_identity_exists(mocker: MockerFixture):
     mocked_client_api.base_url = "https://ziti.api"
     mocked_client_api.enroll_identity.return_value = {"data": {"cert": "identity-certificate"}}
 
-    _, identity_json = await register_instance(
+    _, identity_json = await register_identity(
+        settings,
         mocked_mgmt_api,
         mocked_client_api,
         "EXT-1234-5678",
@@ -150,7 +187,10 @@ async def test_register_instance_identity_exists(mocker: MockerFixture):
         tags={"account": "ACC-1234"},
     )
 
-    mocked_mgmt_api.search_service.assert_awaited_once_with("ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
+    assert (
+        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
+    )
     mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
     mocked_mgmt_api.create_user_identity.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678",
@@ -178,19 +218,31 @@ async def test_register_instance_identity_exists(mocker: MockerFixture):
     assert identity_json["id"]["cert"] == "pem:identity-certificate"
     assert identity_json["id"]["ca"] == "pem:ca-certificates-chain"
 
-    mocked_mgmt_api.create_bind_service_policy.assert_awaited_once_with(
+    mocked_register_service.assert_not_awaited()
+
+    assert mocked_mgmt_api.create_bind_service_policy.mock_calls[0].args == (
         "ins-1234-5678-0001.ext-1234-5678:bind",
         "svc1",
+        "identity-id",
+    )
+    assert mocked_mgmt_api.create_bind_service_policy.mock_calls[1].args == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind",
+        "self-service-id",
         "identity-id",
     )
     mocked_mgmt_api.create_router_policy.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678",
         "identity-id",
     )
-    mocked_mgmt_api.search_service_policy.assert_awaited_once_with(
+    assert mocked_mgmt_api.search_service_policy.mock_calls[0].args[0] == (
         "ins-1234-5678-0001.ext-1234-5678:bind"
     )
-    mocked_mgmt_api.delete_service_policy.assert_awaited_once_with("service-policy-id")
+    assert mocked_mgmt_api.search_service_policy.mock_calls[1].args[0] == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind"
+    )
+    assert mocked_mgmt_api.delete_service_policy.mock_calls[0].args[0] == "service-policy-id"
+    assert mocked_mgmt_api.delete_service_policy.mock_calls[1].args[0] == "self-service-policy-id"
+
     mocked_mgmt_api.search_router_policy.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678"
     )
@@ -199,7 +251,11 @@ async def test_register_instance_identity_exists(mocker: MockerFixture):
 
 
 @pytest.mark.asyncio
-async def test_register_instance_identity_exists_service_router_doesnt(mocker: MockerFixture):
+async def test_register_instance_identity_exists_service_router_doesnt(
+    mocker: MockerFixture,
+    settings_factory: SettingsFactory,
+):
+    settings = settings_factory()
     mocked_jwt_decode = mocker.patch(
         "mrok.ziti.identities.jwt.decode", return_value={"jti": "jti-value"}
     )
@@ -207,8 +263,11 @@ async def test_register_instance_identity_exists_service_router_doesnt(mocker: M
         "mrok.ziti.identities.pki.get_ca_certificates",
         return_value="ca-certificates-chain",
     )
+    mocked_register_service = mocker.patch(
+        "mrok.ziti.identities.register_service", return_value={"id": "self-service-id"}
+    )
     mocked_mgmt_api = mocker.AsyncMock()
-    mocked_mgmt_api.search_service.return_value = {"id": "svc1"}
+    mocked_mgmt_api.search_service.side_effect = [{"id": "svc1"}, None]
     mocked_mgmt_api.search_identity.return_value = {"id": "identity-id"}
     mocked_mgmt_api.search_service_policy.return_value = None
     mocked_mgmt_api.search_router_policy.return_value = None
@@ -220,7 +279,8 @@ async def test_register_instance_identity_exists_service_router_doesnt(mocker: M
     mocked_client_api.base_url = "https://ziti.api"
     mocked_client_api.enroll_identity.return_value = {"data": {"cert": "identity-certificate"}}
 
-    _, identity_json = await register_instance(
+    _, identity_json = await register_identity(
+        settings,
         mocked_mgmt_api,
         mocked_client_api,
         "EXT-1234-5678",
@@ -228,7 +288,10 @@ async def test_register_instance_identity_exists_service_router_doesnt(mocker: M
         tags={"account": "ACC-1234"},
     )
 
-    mocked_mgmt_api.search_service.assert_awaited_once_with("ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
+    assert (
+        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
+    )
     mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
     mocked_mgmt_api.create_user_identity.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678",
@@ -256,17 +319,32 @@ async def test_register_instance_identity_exists_service_router_doesnt(mocker: M
     assert identity_json["id"]["cert"] == "pem:identity-certificate"
     assert identity_json["id"]["ca"] == "pem:ca-certificates-chain"
 
-    mocked_mgmt_api.create_bind_service_policy.assert_awaited_once_with(
+    mocked_register_service.assert_called_once_with(
+        settings,
+        mocked_mgmt_api,
+        "ins-1234-5678-0001.ext-1234-5678",
+        {"account": "ACC-1234"},
+    )
+
+    assert mocked_mgmt_api.create_bind_service_policy.mock_calls[0].args == (
         "ins-1234-5678-0001.ext-1234-5678:bind",
         "svc1",
+        "identity-id",
+    )
+    assert mocked_mgmt_api.create_bind_service_policy.mock_calls[1].args == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind",
+        "self-service-id",
         "identity-id",
     )
     mocked_mgmt_api.create_router_policy.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678",
         "identity-id",
     )
-    mocked_mgmt_api.search_service_policy.assert_awaited_once_with(
+    assert mocked_mgmt_api.search_service_policy.mock_calls[0].args[0] == (
         "ins-1234-5678-0001.ext-1234-5678:bind"
+    )
+    assert mocked_mgmt_api.search_service_policy.mock_calls[1].args[0] == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind"
     )
     mocked_mgmt_api.delete_service_policy.assert_not_awaited()
     mocked_mgmt_api.search_router_policy.assert_awaited_once_with(
@@ -279,40 +357,65 @@ async def test_register_instance_identity_exists_service_router_doesnt(mocker: M
 @pytest.mark.asyncio
 async def test_unregister_instance(
     mocker: MockerFixture,
+    settings_factory: SettingsFactory,
 ):
+    settings = settings_factory()
     mocked_mgmt_api = mocker.AsyncMock()
-    mocked_mgmt_api.search_service.return_value = {"id": "svc1"}
+    mocked_mgmt_api.search_service.side_effect = [{"id": "svc1"}, {"id": "self-service-id"}]
     mocked_mgmt_api.search_identity.return_value = {"id": "identity-id"}
-    mocked_mgmt_api.search_service_policy.return_value = {"id": "service-policy-id"}
+    mocked_mgmt_api.search_service_policy.side_effect = [
+        {"id": "self-service-policy-id"},
+        {"id": "service-policy-id"},
+    ]
     mocked_mgmt_api.search_router_policy.return_value = {"id": "router-policy-id"}
 
-    await unregister_instance(
+    mocked_unregister_service = mocker.patch("mrok.ziti.identities.unregister_service")
+
+    await unregister_identity(
+        settings,
         mocked_mgmt_api,
         "EXT-1234-5678",
         "INS-1234-5678-0001",
     )
 
-    mocked_mgmt_api.search_service.assert_awaited_once_with("ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
+    assert (
+        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
+    )
     mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
 
-    mocked_mgmt_api.search_service_policy.assert_awaited_once_with(
+    assert mocked_mgmt_api.search_service_policy.mock_calls[0].args[0] == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind"
+    )
+    assert mocked_mgmt_api.search_service_policy.mock_calls[1].args[0] == (
         "ins-1234-5678-0001.ext-1234-5678:bind"
     )
-    mocked_mgmt_api.delete_service_policy.assert_awaited_once_with("service-policy-id")
+    assert mocked_mgmt_api.delete_service_policy.mock_calls[0].args[0] == "self-service-policy-id"
+    assert mocked_mgmt_api.delete_service_policy.mock_calls[1].args[0] == "service-policy-id"
     mocked_mgmt_api.search_router_policy.assert_awaited_once_with(
         "ins-1234-5678-0001.ext-1234-5678"
     )
     mocked_mgmt_api.delete_router_policy.assert_awaited_once_with("router-policy-id")
     mocked_mgmt_api.delete_identity.assert_awaited_once_with("identity-id")
+    mocked_unregister_service.assert_called_once_with(
+        settings,
+        mocked_mgmt_api,
+        "ins-1234-5678-0001.ext-1234-5678",
+    )
 
 
 @pytest.mark.asyncio
-async def test_unregister_instance_service_not_found(mocker: MockerFixture):
+async def test_unregister_instance_service_not_found(
+    mocker: MockerFixture,
+    settings_factory: SettingsFactory,
+):
+    settings = settings_factory()
     mocked_mgmt_api = mocker.AsyncMock()
     mocked_mgmt_api.search_service.return_value = None
 
     with pytest.raises(ServiceNotFoundError) as cv:
-        await unregister_instance(
+        await unregister_identity(
+            settings,
             mocked_mgmt_api,
             "EXT-1234-5678",
             "INS-1234-5678-0001",
@@ -322,41 +425,55 @@ async def test_unregister_instance_service_not_found(mocker: MockerFixture):
 
 
 @pytest.mark.asyncio
-async def test_unregister_instance_instance_not_found(mocker: MockerFixture):
+async def test_unregister_instance_instance_not_found(
+    mocker: MockerFixture,
+    settings_factory: SettingsFactory,
+):
+    settings = settings_factory()
     mocked_mgmt_api = mocker.AsyncMock()
     mocked_mgmt_api.search_service.return_value = {"id": "svc1"}
     mocked_mgmt_api.search_identity.return_value = None
 
     with pytest.raises(UserIdentityNotFoundError) as cv:
-        await unregister_instance(
+        await unregister_identity(
+            settings,
             mocked_mgmt_api,
             "EXT-1234-5678",
             "INS-1234-5678-0001",
         )
 
-    assert str(cv.value) == "Instance `INS-1234-5678-0001` not found."
+    assert str(cv.value) == "Identity `INS-1234-5678-0001` not found."
 
 
 @pytest.mark.asyncio
 async def test_unregister_instance_policies_not_found(
     mocker: MockerFixture,
+    settings_factory: SettingsFactory,
 ):
+    settings = settings_factory()
     mocked_mgmt_api = mocker.AsyncMock()
-    mocked_mgmt_api.search_service.return_value = {"id": "svc1"}
+    mocked_mgmt_api.search_service.side_effect = [{"id": "svc1"}, None]
     mocked_mgmt_api.search_identity.return_value = {"id": "identity-id"}
     mocked_mgmt_api.search_service_policy.return_value = None
     mocked_mgmt_api.search_router_policy.return_value = None
 
-    await unregister_instance(
+    await unregister_identity(
+        settings,
         mocked_mgmt_api,
         "EXT-1234-5678",
         "INS-1234-5678-0001",
     )
 
-    mocked_mgmt_api.search_service.assert_awaited_once_with("ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
+    assert (
+        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
+    )
     mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
 
-    mocked_mgmt_api.search_service_policy.assert_awaited_once_with(
+    assert mocked_mgmt_api.search_service_policy.mock_calls[0].args[0] == (
+        "self.ins-1234-5678-0001.ext-1234-5678:bind"
+    )
+    assert mocked_mgmt_api.search_service_policy.mock_calls[1].args[0] == (
         "ins-1234-5678-0001.ext-1234-5678:bind"
     )
     mocked_mgmt_api.delete_service_policy.assert_not_awaited()

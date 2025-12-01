@@ -14,8 +14,8 @@ from mrok.ziti.errors import (
     ServiceAlreadyRegisteredError,
     ServiceNotFoundError,
 )
-from mrok.ziti.identities import register_instance, unregister_instance
-from mrok.ziti.services import register_extension, unregister_extension
+from mrok.ziti.identities import register_identity, unregister_identity
+from mrok.ziti.services import register_service, unregister_service
 
 logger = logging.getLogger("mrok.controller")
 
@@ -83,7 +83,7 @@ async def create_extension(
     ],
 ):
     try:
-        service = await register_extension(settings, mgmt_api, data.extension.id, data.tags)
+        service = await register_service(settings, mgmt_api, data.extension.id, data.tags)
         return ExtensionRead(
             id=service["id"],
             name=service["name"],
@@ -149,7 +149,7 @@ async def delete_instance_by_id_or_extension_id(
     id_or_extension_id: str,
 ):
     try:
-        await unregister_extension(settings, mgmt_api, id_or_extension_id)
+        await unregister_service(settings, mgmt_api, id_or_extension_id)
     except ServiceNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -203,6 +203,7 @@ async def get_extensions(
     tags=["Instances"],
 )
 async def create_extension_instances(
+    settings: AppSettings,
     mgmt_api: ZitiManagementAPI,
     client_api: ZitiClientAPI,
     id_or_extension_id: str,
@@ -223,8 +224,8 @@ async def create_extension_instances(
     ],
 ):
     service = await fetch_extension_or_404(mgmt_api, id_or_extension_id)
-    identity, identity_file = await register_instance(
-        mgmt_api, client_api, service["name"], data.instance.id, data.tags
+    identity, identity_file = await register_identity(
+        settings, mgmt_api, client_api, service["name"], data.instance.id, data.tags
     )
     return InstanceRead(
         id=identity["id"],
@@ -299,10 +300,11 @@ async def get_instance_by_id_or_instance_id(
     tags=["Instances"],
 )
 async def delete_instance_by_id_or_instance_id(
+    settings: AppSettings,
     mgmt_api: ZitiManagementAPI,
     id_or_extension_id: str,
     id_or_instance_id: str,
 ):
     identity = await fetch_instance_or_404(mgmt_api, id_or_extension_id, id_or_instance_id)
     instance_id, extension_id = identity["name"].split(".")
-    await unregister_instance(mgmt_api, extension_id, instance_id)
+    await unregister_identity(settings, mgmt_api, extension_id, instance_id)
