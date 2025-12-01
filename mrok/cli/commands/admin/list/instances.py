@@ -21,7 +21,11 @@ from mrok.ziti.constants import (
 
 
 async def get_instances(
-    settings: Settings, detailed: bool, extension: str | None = None, tags: list[str] | None = None
+    settings: Settings,
+    detailed: bool,
+    extension: str | None = None,
+    tags: list[str] | None = None,
+    online_only: bool = False,
 ) -> list[dict]:
     async with ZitiManagementAPI(settings) as api:
         tags = tags or []
@@ -29,6 +33,9 @@ async def get_instances(
         identities = [
             identity async for identity in api.identities(params={"filter": tags_to_filter(tags)})
         ]
+        if online_only:
+            identities = list(filter(lambda i: i["hasEdgeRouterConnection"], identities))
+
         if detailed or extension:
             for identity in identities:
                 identity["services"] = [
@@ -60,10 +67,11 @@ async def get_instances(
 def render_tsv(instances: list[dict], detailed: bool) -> None:
     console = get_console()
     if detailed:
-        console.print("id\tname\tservices\tpolicies\ttags\tcreated\tupdated")
+        console.print("id\tname\tstatus\tservices\tpolicies\ttags\tcreated\tupdated")
         for instance in instances:
             console.print(
                 f"{instance['id']}\t{instance['name']}\t"
+                f"{'online' if instance['hasEdgeRouterConnection'] else 'offline'}\t"
                 f"{extract_names(instance['services'], ', ')}\t"
                 f"{extract_names(instance['policies'], ', ')}\t"
                 f"{format_tags(instance['tags'], ', ')}\t"
@@ -71,10 +79,11 @@ def render_tsv(instances: list[dict], detailed: bool) -> None:
                 f"{format_timestamp(instance['updatedAt'])}"
             )
     else:
-        console.print("id\tname\ttags\tcreated")
+        console.print("id\tname\tstatus\ttags\tcreated")
         for instance in instances:
             console.print(
                 f"{instance['id']}\t{instance['name']}\t"
+                f"{'online' if instance['hasEdgeRouterConnection'] else 'offline'}\t"
                 f"{format_tags(instance['tags'], ', ')}\t"
                 f"{format_timestamp(instance['createdAt'])}\t"
             )
@@ -90,6 +99,7 @@ def render_table(instances: list[dict], detailed: bool) -> None:
     )
     table.add_column("Id", style="green")
     table.add_column("Name", style="bold cyan")
+    table.add_column("Status", justify="center")
     if detailed:
         table.add_column("Associated services")
         table.add_column("Associated service policies")
@@ -102,6 +112,7 @@ def render_table(instances: list[dict], detailed: bool) -> None:
         row = [
             instance["id"],
             instance["name"],
+            "🟢" if instance["hasEdgeRouterConnection"] else "⚪",
         ]
         if detailed:
             row += [
@@ -142,6 +153,15 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = None,
+        online_only: Annotated[
+            bool,
+            typer.Option(
+                "--online-only",
+                "-o",
+                help="Show only connected instances",
+                show_default=True,
+            ),
+        ] = False,
         detailed: bool = typer.Option(
             False,
             "--detailed",
@@ -155,7 +175,7 @@ def register(app: typer.Typer) -> None:
         ),
     ):
         """List instances in OpenZiti (identities)."""
-        instances = asyncio.run(get_instances(ctx.obj, detailed, extension, tags))
+        instances = asyncio.run(get_instances(ctx.obj, detailed, extension, tags, online_only))
 
         if len(instances) == 0:
             get_console().print("No instances found.")
