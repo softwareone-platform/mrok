@@ -99,6 +99,15 @@ async def test_register_instance(mocker: MockerFixture, settings_factory: Settin
     assert identity_json["id"]["key"].startswith("pem:-----BEGIN PRIVATE KEY-----")
     assert identity_json["id"]["cert"] == "pem:identity-certificate"
     assert identity_json["id"]["ca"] == "pem:ca-certificates-chain"
+    assert identity_json["mrok"]["tags"] == {
+        MROK_IDENTITY_TYPE_TAG_NAME: MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
+        MROK_SERVICE_TAG_NAME: "ext-1234-5678",
+        "account": "ACC-1234",
+    }
+    assert identity_json["mrok"]["domain"] == settings.proxy.domain
+    assert identity_json["mrok"]["identity"] == "ins-1234-5678-0001.ext-1234-5678"
+    assert identity_json["mrok"]["extension"] == "EXT-1234-5678"
+    assert identity_json["mrok"]["instance"] == "INS-1234-5678-0001"
 
     mocked_register_service.assert_called_once_with(
         settings,

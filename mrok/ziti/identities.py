@@ -68,6 +68,8 @@ async def register_identity(
             "identity": identity_name,
             "extension": service_external_id,
             "instance": identity_external_id,
+            "domain": settings.proxy.domain,
+            "tags": identity_tags,
         },
     )
 
@@ -148,7 +150,7 @@ async def _enroll_identity(
     client_api: ZitiClientAPI,
     identity_id: str,
     identity: dict[str, Any] | None = None,
-    mrok: dict[str, str] | None = None,
+    mrok: dict[str, str | dict] | None = None,
 ):
     if identity is None:
         identity = await mgmt_api.get_identity(identity_id)
