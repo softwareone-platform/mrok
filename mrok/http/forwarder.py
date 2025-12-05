@@ -1,14 +1,10 @@
 import abc
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
-from typing import Any
+
+from mrok.http.types import ASGIReceive, ASGISend, Scope
 
 logger = logging.getLogger("mrok.proxy")
-
-Scope = dict[str, Any]
-ASGIReceive = Callable[[], Awaitable[dict[str, Any]]]
-ASGISend = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class BackendNotFoundError(Exception):

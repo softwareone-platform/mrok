@@ -4,7 +4,8 @@ from typing import Any
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.agent.sidecar.app import ASGIReceive, ASGISend, ForwardApp
+from mrok.agent.sidecar.app import ForwardApp
+from mrok.http.types import ASGIReceive, ASGISend
 
 
 class FakeReader:
