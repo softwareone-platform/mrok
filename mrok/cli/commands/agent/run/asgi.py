@@ -44,6 +44,37 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = False,
+        publishers_port: Annotated[
+            int,
+            typer.Option(
+                "--publishers-port",
+                "-p",
+                help=(
+                    "TCP port where the mrok agent "
+                    "should connect to publish to request/response messages."
+                ),
+                show_default=True,
+            ),
+        ] = 50000,
+        subscribers_port: Annotated[
+            int,
+            typer.Option(
+                "--subscribers-port",
+                "-s",
+                help=(
+                    "TCP port where the mrok agent should listen for incoming subscribers "
+                    "connections for request/response messages."
+                ),
+                show_default=True,
+            ),
+        ] = 50001,
     ):
         """Run an ASGI application exposing it through OpenZiti network."""
-        ziticorn.run(app, str(identity_file), workers=workers, reload=reload)
+        ziticorn.run(
+            app,
+            str(identity_file),
+            workers=workers,
+            reload=reload,
+            publishers_port=publishers_port,
+            subscribers_port=subscribers_port,
+        )

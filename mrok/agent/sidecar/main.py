@@ -1,27 +1,46 @@
-import asyncio
-import contextlib
-from functools import partial
+import logging
 from pathlib import Path
 
 from mrok.agent.sidecar.app import ForwardApp
-from mrok.http.config import MrokBackendConfig
-from mrok.http.master import Master
-from mrok.http.server import MrokServer
+from mrok.master import MasterBase
+
+logger = logging.getLogger("mrok.proxy")
 
 
-def run_sidecar(identity_file: str, target_addr: str | Path | tuple[str, int]):
-    config = MrokBackendConfig(ForwardApp(target_addr), identity_file)
-    server = MrokServer(config)
-    with contextlib.suppress(KeyboardInterrupt, asyncio.CancelledError):
-        server.run()
+class SidecarAgent(MasterBase):
+    def __init__(
+        self,
+        identity_file: str,
+        target_addr: str | Path | tuple[str, int],
+        workers: int = 4,
+        publishers_port: int = 50000,
+        subscribers_port: int = 50001,
+    ):
+        super().__init__(
+            identity_file,
+            workers,
+            False,
+            publishers_port,
+            subscribers_port,
+        )
+        self.target_address = target_addr
+
+    def get_asgi_app(self):
+        return ForwardApp(self.target_address)
 
 
 def run(
     identity_file: str,
     target_addr: str | Path | tuple[str, int],
-    workers=4,
-    reload=False,
+    workers: int = 4,
+    publishers_port: int = 50000,
+    subscribers_port: int = 50001,
 ):
-    start_fn = partial(run_sidecar, identity_file, target_addr)
-    master = Master(start_fn, workers=workers, reload=reload)
-    master.run()
+    agent = SidecarAgent(
+        identity_file,
+        target_addr,
+        workers=workers,
+        publishers_port=publishers_port,
+        subscribers_port=subscribers_port,
+    )
+    agent.run()

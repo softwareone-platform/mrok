@@ -74,15 +74,3 @@ def test_backend_config_bind_socket_ziti_error(mocker: MockerFixture, ziti_ident
         config.bind_socket()
 
     assert str(cv.value) == f"Failed to load Ziti identity from {ziti_identity_file}: 1"
-
-
-def test_backend_config_configure_logging(mocker: MockerFixture, ziti_identity_file: str):
-    mocked_settings = mocker.MagicMock()
-    mocker.patch("mrok.http.config.get_settings", return_value=mocked_settings)
-    mocked_setup_logging = mocker.patch("mrok.http.config.setup_logging")
-
-    async def fake_asgi_app(scope, receive, send):
-        pass
-
-    MrokBackendConfig(fake_asgi_app, ziti_identity_file, backlog=4096)
-    mocked_setup_logging.assert_called_once_with(mocked_settings)

@@ -1,47 +1,44 @@
 from pytest_mock import MockerFixture
 
-from mrok.agent import ziticorn
+from mrok.agent.ziticorn import ZiticornAgent, run
 
 
-def test_run_ziticorn(mocker: MockerFixture):
-    fake_app = mocker.MagicMock()
-
-    mocked_config = mocker.MagicMock()
-    mocked_config_ctor = mocker.patch(
-        "mrok.agent.ziticorn.MrokBackendConfig",
-        return_value=mocked_config,
+def test_ziticorn_agent(mocker: MockerFixture):
+    mocked_app = mocker.MagicMock()
+    agent = ZiticornAgent(
+        mocked_app,
+        "identity.json",
+        workers=2,
+        reload=True,
+        publishers_port=2000,
+        subscribers_port=3000,
     )
-
-    mocked_server = mocker.MagicMock()
-    mocked_server_ctor = mocker.patch(
-        "mrok.agent.ziticorn.MrokServer",
-        return_value=mocked_server,
-    )
-
-    ziticorn.run_ziticorn(fake_app, "ziti-identity.json")
-
-    mocked_config_ctor.assert_called_once_with(fake_app, "ziti-identity.json")
-    mocked_server_ctor.assert_called_once_with(mocked_config)
-    mocked_server.run.assert_called_once()
+    assert agent.reload is True
+    assert agent.get_asgi_app() == mocked_app
 
 
 def test_run(mocker: MockerFixture):
-    fake_app = mocker.MagicMock()
-    mocked_start_fn = mocker.MagicMock()
-    mocked_partial = mocker.patch("mrok.agent.ziticorn.partial", return_value=mocked_start_fn)
-
-    mocked_master = mocker.MagicMock()
-    mocked_master_ctor = mocker.patch(
-        "mrok.agent.ziticorn.Master",
-        return_value=mocked_master,
+    mocked_agent = mocker.MagicMock()
+    mocked_agent_ctor = mocker.patch(
+        "mrok.agent.ziticorn.ZiticornAgent",
+        return_value=mocked_agent,
     )
 
-    ziticorn.run(fake_app, "ziti-identity.json", workers=10, reload=True)
-
-    mocked_partial.assert_called_once_with(
-        ziticorn.run_ziticorn,
-        fake_app,
+    run(
+        "my.app:app",
         "ziti-identity.json",
+        workers=10,
+        reload=True,
+        publishers_port=4000,
+        subscribers_port=5000,
     )
-    mocked_master_ctor.assert_called_once_with(mocked_start_fn, workers=10, reload=True)
-    mocked_master.run.assert_called_once()
+
+    mocked_agent_ctor.assert_called_once_with(
+        "my.app:app",
+        "ziti-identity.json",
+        workers=10,
+        reload=True,
+        publishers_port=4000,
+        subscribers_port=5000,
+    )
+    mocked_agent.run.assert_called_once()
