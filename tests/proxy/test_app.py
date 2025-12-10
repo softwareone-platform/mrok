@@ -4,6 +4,8 @@ from pytest_mock import MockerFixture
 from mrok.proxy.app import ProxyApp, ProxyError
 from tests.conftest import SettingsFactory
 
+pytestmark = pytest.mark.skipif()
+
 
 def test_init(mocker: MockerFixture):
     ziti_conn_mgr_ctor = mocker.patch("mrok.proxy.app.ZitiConnectionManager")

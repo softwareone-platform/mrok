@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import zmq
 import zmq.asyncio
+from uvicorn.importer import import_from_string
 from watchfiles import watch
 from watchfiles.filters import PythonFilter
 from watchfiles.run import CombinedProcess, start_process
@@ -69,6 +70,9 @@ def start_uvicorn_worker(
     import sys
 
     sys.path.insert(0, os.getcwd())
+    if isinstance(app, str):
+        app = import_from_string(app)
+
     setup_logging(get_settings())
     identity = json.load(open(identity_file))
     meta = Meta(**identity["mrok"])
@@ -82,7 +86,6 @@ def start_uvicorn_worker(
     async def status_sender():
         while True:
             snap = await metrics.snapshot()
-            logger.info(f"New metrics snapshot taken: {snap}")
             event = Event(type="status", data=Status(meta=meta, metrics=snap))
             await pub.send_string(event.model_dump_json())
             await asyncio.sleep(metrics_interval)
