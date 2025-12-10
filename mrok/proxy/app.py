@@ -38,21 +38,25 @@ class ProxyApp(ForwardAppBase):
             purge_interval=ziti_conn_cache_purge_interval_seconds,
         )
 
-    def get_target_name(self, headers: dict[str, str]) -> str:
-        header_value = headers.get("x-forwarded-for", headers.get("host"))
+    def get_target_from_header(self, name: str, headers: dict[str, str]) -> str:
+        header_value = headers.get(name)
         if not header_value:
             raise ProxyError(
-                "Cannot determine the target OpenZiti service/terminator name, "
-                "neither Host nor X-Forwarded-For headers have been sent in the request.",
+                f"Header {name} not found!",
             )
         if ":" in header_value:
             header_value, _ = header_value.split(":", 1)
         if not header_value.endswith(self._proxy_wildcard_domain):
-            raise ProxyError(
-                f"Unexpected value for Host or X-Forwarded-For header: `{header_value}`."
-            )
+            raise ProxyError(f"Unexpected value for {name} header: `{header_value}`.")
 
         return header_value[: -len(self._proxy_wildcard_domain)]
+
+    def get_target_name(self, headers: dict[str, str]) -> str:
+        try:
+            return self.get_target_from_header("x-forwared-for", headers)
+        except ProxyError as pe:
+            logger.warning(pe)
+            return self.get_target_from_header("host", headers)
 
     async def startup(self):
         setup_logging(get_settings())
