@@ -4,9 +4,7 @@ from typing import Annotated
 import typer
 
 from mrok.agent import sidecar
-from mrok.cli.commands.agent.utils import (
-    number_of_workers,
-)
+from mrok.cli.utils import number_of_workers
 
 default_workers = number_of_workers()
 

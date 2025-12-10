@@ -3,9 +3,9 @@ import logging
 from pathlib import Path
 
 from mrok.http.forwarder import ForwardAppBase
-from mrok.http.types import Scope
+from mrok.http.types import Scope, StreamReader, StreamWriter
 
-logger = logging.getLogger("mrok.proxy")
+logger = logging.getLogger("mrok.agent")
 
 
 class ForwardApp(ForwardAppBase):
@@ -23,7 +23,7 @@ class ForwardApp(ForwardAppBase):
         self,
         scope: Scope,
         headers: dict[str, str],
-    ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter] | tuple[None, None]:
+    ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
         if isinstance(self._target_address, tuple):
             return await asyncio.open_connection(*self._target_address)
         return await asyncio.open_unix_connection(str(self._target_address))
