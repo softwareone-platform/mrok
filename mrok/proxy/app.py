@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 
 from mrok.conf import get_settings
@@ -35,37 +34,30 @@ class ProxyApp(ForwardAppBase):
         self._conn_manager = ZitiConnectionManager(
             identity_file,
             ttl_seconds=ziti_connection_ttl_seconds,
-            purge_interval=ziti_conn_cache_purge_interval_seconds,
+            cleanup_interval=ziti_conn_cache_purge_interval_seconds,
         )
 
-    def get_target_from_header(self, name: str, headers: dict[str, str]) -> str:
-        header_value = headers.get(name)
-        if not header_value:
-            raise ProxyError(
-                f"Header {name} not found!",
-            )
-        if ":" in header_value:
-            header_value, _ = header_value.split(":", 1)
-        if not header_value.endswith(self._proxy_wildcard_domain):
-            raise ProxyError(f"Unexpected value for {name} header: `{header_value}`.")
-
-        return header_value[: -len(self._proxy_wildcard_domain)]
+    def get_target_from_header(self, headers: dict[str, str], name: str) -> str | None:
+        header_value = headers.get(name, "")
+        if self._proxy_wildcard_domain in header_value:
+            if ":" in header_value:
+                header_value, _ = header_value.split(":", 1)
+            return header_value[: -len(self._proxy_wildcard_domain)]
 
     def get_target_name(self, headers: dict[str, str]) -> str:
-        try:
-            return self.get_target_from_header("x-forwared-for", headers)
-        except ProxyError as pe:
-            logger.warning(pe)
-            return self.get_target_from_header("host", headers)
+        target = self.get_target_from_header(headers, "x-forwarded-host")
+        if not target:
+            target = self.get_target_from_header(headers, "host")
+        if not target:
+            raise ProxyError("Neither Host nor X-Forwarded-Host contain a valid target name")
+        return target
 
     async def startup(self):
         setup_logging(get_settings())
         await self._conn_manager.start()
-        logger.info(f"Proxy app startup completed: {os.getpid()}")
 
     async def shutdown(self):
         await self._conn_manager.stop()
-        logger.info(f"Proxy app shutdown completed: {os.getpid()}")
 
     async def select_backend(
         self,
@@ -74,4 +66,4 @@ class ProxyApp(ForwardAppBase):
     ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
         target_name = self.get_target_name(headers)
 
-        return await self._conn_manager.get(target_name)
+        return await self._conn_manager.get_or_create(target_name)
