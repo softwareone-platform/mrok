@@ -2,11 +2,13 @@ import asyncio
 import logging
 from pathlib import Path
 
+import openziti
+from openziti.context import ZitiContext
+
 from mrok.conf import get_settings
 from mrok.http.forwarder import ForwardAppBase
 from mrok.http.types import Scope, StreamReader, StreamWriter
 from mrok.logging import setup_logging
-from mrok.proxy.ziti import ZitiSocketCache
 
 logger = logging.getLogger("mrok.proxy")
 
@@ -30,7 +32,7 @@ class ProxyApp(ForwardAppBase):
             if settings.proxy.domain[0] == "."
             else f".{settings.proxy.domain}"
         )
-        self._ziti_socket_cache = ZitiSocketCache(self._identity_file)
+        self._ziti_ctx: ZitiContext | None = None
 
     def get_target_from_header(self, headers: dict[str, str], name: str) -> str | None:
         header_value = headers.get(name, "")
@@ -47,11 +49,17 @@ class ProxyApp(ForwardAppBase):
             raise ProxyError("Neither Host nor X-Forwarded-Host contain a valid target name")
         return target
 
+    def _get_ziti_ctx(self) -> ZitiContext:
+        if self._ziti_ctx is None:
+            ctx, err = openziti.load(str(self._identity_file), timeout=10_000)
+            if err != 0:
+                raise Exception(f"Cannot create a Ziti context from the identity file: {err}")
+            self._ziti_ctx = ctx
+        return self._ziti_ctx
+
     async def startup(self):
         setup_logging(get_settings())
-
-    async def shutdown(self):
-        await self._ziti_socket_cache.stop()
+        self._get_ziti_ctx()
 
     async def select_backend(
         self,
@@ -59,6 +67,6 @@ class ProxyApp(ForwardAppBase):
         headers: dict[str, str],
     ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
         target_name = self.get_target_name(headers)
-        sock = await self._ziti_socket_cache.get_or_create(target_name)
+        sock = self._get_ziti_ctx().connect(target_name)
         reader, writer = await asyncio.open_connection(sock=sock)
         return reader, writer
