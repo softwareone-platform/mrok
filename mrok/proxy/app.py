@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from pathlib import Path
 
@@ -5,7 +6,7 @@ from mrok.conf import get_settings
 from mrok.http.forwarder import ForwardAppBase
 from mrok.http.types import Scope, StreamReader, StreamWriter
 from mrok.logging import setup_logging
-from mrok.proxy.ziti import ZitiConnectionManager
+from mrok.proxy.ziti import ZitiSocketCache
 
 logger = logging.getLogger("mrok.proxy")
 
@@ -20,8 +21,6 @@ class ProxyApp(ForwardAppBase):
         identity_file: str | Path,
         *,
         read_chunk_size: int = 65536,
-        ziti_connection_ttl_seconds: float = 60,
-        ziti_conn_cache_purge_interval_seconds: float = 10,
     ) -> None:
         super().__init__(read_chunk_size=read_chunk_size)
         self._identity_file = identity_file
@@ -31,11 +30,7 @@ class ProxyApp(ForwardAppBase):
             if settings.proxy.domain[0] == "."
             else f".{settings.proxy.domain}"
         )
-        self._conn_manager = ZitiConnectionManager(
-            identity_file,
-            ttl_seconds=ziti_connection_ttl_seconds,
-            cleanup_interval=ziti_conn_cache_purge_interval_seconds,
-        )
+        self._ziti_socket_cache = ZitiSocketCache(self._identity_file)
 
     def get_target_from_header(self, headers: dict[str, str], name: str) -> str | None:
         header_value = headers.get(name, "")
@@ -54,10 +49,9 @@ class ProxyApp(ForwardAppBase):
 
     async def startup(self):
         setup_logging(get_settings())
-        await self._conn_manager.start()
 
     async def shutdown(self):
-        await self._conn_manager.stop()
+        await self._ziti_socket_cache.stop()
 
     async def select_backend(
         self,
@@ -65,5 +59,6 @@ class ProxyApp(ForwardAppBase):
         headers: dict[str, str],
     ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
         target_name = self.get_target_name(headers)
-
-        return await self._conn_manager.get_or_create(target_name)
+        sock = self._ziti_socket_cache.get_or_create(target_name)
+        reader, writer = await asyncio.open_connection(sock=sock)
+        return reader, writer

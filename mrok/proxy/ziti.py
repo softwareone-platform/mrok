@@ -1,117 +1,103 @@
 import asyncio
 import contextlib
-import logging
+from asyncio import Task
 from pathlib import Path
 
 import openziti
 from aiocache import Cache
-
-from mrok.proxy.streams import CachedStreamReader, CachedStreamWriter
-from mrok.proxy.types import StreamPair
-
-logger = logging.getLogger("mrok.proxy")
+from openziti.context import ZitiContext
+from openziti.zitisock import ZitiSocket
 
 
-class ZitiConnectionManager:
+class ZitiSocketCache:
     def __init__(
         self,
         identity_file: str | Path,
-        ziti_timeout_ms: int = 10000,
+        ziti_ctx_timeout_ms: int = 10_000,
         ttl_seconds: float = 60.0,
         cleanup_interval: float = 10.0,
-    ):
-        self.identity_file = identity_file
-        self.ziti_timeout_ms = ziti_timeout_ms
-        self.ttl_seconds = ttl_seconds
-        self.cleanup_interval = cleanup_interval
+    ) -> None:
+        self._identity_file = identity_file
+        self._ziti_ctx_timeout_ms = ziti_ctx_timeout_ms
+        self._ttl_seconds = ttl_seconds
+        self._cleanup_interval = cleanup_interval
 
-        self.cache = Cache(Cache.MEMORY)
+        self._ziti_ctx: ZitiContext | None = None
+        self._cache = Cache(Cache.MEMORY)
+        self._active_sockets: dict[str, ZitiSocket] = {}
+        self._cleanup_task: Task | None = None
 
-        self._active_pairs: dict[str, StreamPair] = {}
-
-        self._cleanup_task: asyncio.Task | None = None
-        self._ziti_ctx: openziti.context.ZitiContext | None = None
-
-    async def create_stream_pair(self, key: str) -> StreamPair:
-        if not self._ziti_ctx:
-            raise Exception("ZitiConnectionManager is not started")
-        sock = self._ziti_ctx.connect(key)
-        orig_reader, orig_writer = await asyncio.open_connection(sock=sock)
-
-        reader = CachedStreamReader(orig_reader, key, self)
-        writer = CachedStreamWriter(orig_writer, key, self)
-        return (reader, writer)
-
-    async def get_or_create(self, key: str) -> StreamPair:
-        pair = await self.cache.get(key)
-
-        if pair:
-            logger.info(f"return cached connection for {key}")
-            await self.cache.set(key, pair, ttl=self.ttl_seconds)
-            self._active_pairs[key] = pair
-            return pair
-
-        pair = await self.create_stream_pair(key)
-        await self.cache.set(key, pair, ttl=self.ttl_seconds)
-        self._active_pairs[key] = pair
-        logger.info(f"return new connection for {key}")
-        return pair
-
-    async def invalidate(self, key: str) -> None:
-        logger.info(f"invalidating connection for {key}")
-        pair = await self.cache.get(key)
-        if pair:
-            await self._close_pair(pair)
-
-        await self.cache.delete(key)
-        self._active_pairs.pop(key, None)
-
-    async def start(self) -> None:
-        if self._cleanup_task is None:
-            self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
+    def _get_ziti_ctx(self) -> ZitiContext:
         if self._ziti_ctx is None:
-            ctx, err = openziti.load(str(self.identity_file), timeout=self.ziti_timeout_ms)
+            ctx, err = openziti.load(str(self._identity_file), timeout=self._ziti_ctx_timeout_ms)
             if err != 0:
                 raise Exception(f"Cannot create a Ziti context from the identity file: {err}")
             self._ziti_ctx = ctx
+        return self._ziti_ctx
 
-    async def stop(self) -> None:
-        if self._cleanup_task:
-            self._cleanup_task.cancel()
-            with contextlib.suppress(Exception):
-                await self._cleanup_task
+    async def _create_socket(self, key: str):
+        return self._get_ziti_ctx().connect(key)
 
-            for pair in list(self._active_pairs.values()):
-                await self._close_pair(pair)
+    async def get_or_create(self, key: str):
+        sock = await self._cache.get(key)
 
-            self._active_pairs.clear()
-            await self.cache.clear()
-        openziti.shutdown()
+        if sock:
+            await self._cache.set(key, sock, ttl_seconds=self._ttl_seconds)
+            self._active_sockets[key] = sock
+            return sock
+
+        sock = await self._create_socket(key)
+        await self._cache.set(key, sock, ttl_seconds=self._ttl_seconds)
+        self._active_sockets[key] = sock
+        return sock
+
+    async def invalidate(self, key: str):
+        sock = await self._cache.get(key)
+        if sock:
+            await self._close_socket(sock)
+
+        await self._cache.delete(key)
+        self._active_sockets.pop(key, None)
+
+    async def start(self):
+        self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
+        # Warmup ziti context
+        self._get_ziti_ctx()
+
+    async def stop(self):
+        """
+        Cleanup: stop background task + close all sockets.
+        """
+        self._cleanup_task.cancel()
+        with contextlib.suppress(Exception):
+            await self._cleanup_task
+
+        for sock in list(self._active_sockets.values()):
+            await self._close_socket(sock)
+
+        self._active_sockets.clear()
+        await self._cache.clear()
 
     @staticmethod
-    async def _close_pair(pair: StreamPair) -> None:
-        reader, writer = pair
-        writer.close()
+    async def _close_socket(sock: ZitiSocket):
         with contextlib.suppress(Exception):
-            await writer.wait_closed()
+            sock.close()
 
-    async def _periodic_cleanup(self) -> None:
+    async def _periodic_cleanup(self):
         try:
             while True:
-                await asyncio.sleep(self.cleanup_interval)
+                await asyncio.sleep(self._cleanup_interval)
                 await self._cleanup_once()
         except asyncio.CancelledError:
             return
 
-    async def _cleanup_once(self) -> None:
-        # Keys currently stored in aiocache
-        keys_in_cache = set(await self.cache.keys())
-        # Keys we think are alive
-        known_keys = set(self._active_pairs.keys())
+    async def _cleanup_once(self):
+        keys_now = set(await self._cache.keys())
+        known_keys = set(self._active_sockets.keys())
 
-        expired_keys = known_keys - keys_in_cache
+        expired = known_keys - keys_now
 
-        for key in expired_keys:
-            pair = self._active_pairs.pop(key, None)
-            if pair:
-                await self._close_pair(pair)
+        for key in expired:
+            sock = self._active_sockets.pop(key, None)
+            if sock:
+                await self._close_socket(sock)
