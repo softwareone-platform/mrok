@@ -1,13 +1,13 @@
 import asyncio
 
-from mrok.proxy.types import ConnectionCache, ConnectionKey
+from mrok.proxy.types import ConnectionCache
 
 
 class CachedStreamReader:
     def __init__(
         self,
         reader: asyncio.StreamReader,
-        key: ConnectionKey,
+        key: str,
         manager: ConnectionCache,
     ):
         self._reader = reader
@@ -77,7 +77,7 @@ class CachedStreamWriter:
     def __init__(
         self,
         writer: asyncio.StreamWriter,
-        key: ConnectionKey,
+        key: str,
         manager: ConnectionCache,
     ):
         self._writer = writer

@@ -9,6 +9,7 @@ authors = [
 license = { file = "LICENSE.txt" }
 requires-python = ">=3.12,<4"
 dependencies = [
+    "aiocache>=0.12.3,<0.13.0",
     "asn1crypto>=1.5.1,<2.0.0",
     "cryptography>=45.0.7,<46.0.0",
     "dynaconf>=3.2.11,<4.0.0",
