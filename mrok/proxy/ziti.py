@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 from asyncio import Task
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import openziti
 from aiocache import Cache
 from openziti.context import ZitiContext
 from openziti.zitisock import ZitiSocket
+
+logger = logging.getLogger("mrok.proxy")
 
 
 class ZitiSocketCache:
@@ -42,22 +45,24 @@ class ZitiSocketCache:
         sock = await self._cache.get(key)
 
         if sock:
-            await self._cache.set(key, sock, ttl_seconds=self._ttl_seconds)
+            await self._cache.expire(key, self._ttl_seconds)
             self._active_sockets[key] = sock
+            logger.debug(f"Ziti socket found for service {key}")
             return sock
 
         sock = await self._create_socket(key)
-        await self._cache.set(key, sock, ttl_seconds=self._ttl_seconds)
+        await self._cache.set(key, sock, self._ttl_seconds)
         self._active_sockets[key] = sock
+        logger.info(f"New Ziti socket created for service {key}")
         return sock
 
-    async def invalidate(self, key: str):
-        sock = await self._cache.get(key)
-        if sock:
-            await self._close_socket(sock)
+    # async def invalidate(self, key: str):
+    #     sock = await self._cache.get(key)
+    #     if sock:
+    #         await self._close_socket(sock)
 
-        await self._cache.delete(key)
-        self._active_sockets.pop(key, None)
+    #     await self._cache.delete(key)
+    #     self._active_sockets.pop(key, None)
 
     async def start(self):
         self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
@@ -65,9 +70,6 @@ class ZitiSocketCache:
         self._get_ziti_ctx()
 
     async def stop(self):
-        """
-        Cleanup: stop background task + close all sockets.
-        """
         self._cleanup_task.cancel()
         with contextlib.suppress(Exception):
             await self._cleanup_task
@@ -92,12 +94,9 @@ class ZitiSocketCache:
             return
 
     async def _cleanup_once(self):
-        keys_now = set(await self._cache.keys())
-        known_keys = set(self._active_sockets.keys())
-
-        expired = known_keys - keys_now
-
+        expired = {key for key in self._active_sockets.keys() if not self._cache.exists(key)}
         for key in expired:
+            logger.debug(f"Cleaning up expired socket connection {key}")
             sock = self._active_sockets.pop(key, None)
             if sock:
                 await self._close_socket(sock)

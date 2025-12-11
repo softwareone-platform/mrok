@@ -59,6 +59,6 @@ class ProxyApp(ForwardAppBase):
         headers: dict[str, str],
     ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
         target_name = self.get_target_name(headers)
-        sock = self._ziti_socket_cache.get_or_create(target_name)
+        sock = await self._ziti_socket_cache.get_or_create(target_name)
         reader, writer = await asyncio.open_connection(sock=sock)
         return reader, writer
