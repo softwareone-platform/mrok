@@ -1,6 +1,5 @@
 import asyncio
 import json
-import re
 from pathlib import Path
 from typing import Annotated
 
@@ -8,10 +7,9 @@ import typer
 
 from mrok.cli.commands.admin.utils import parse_tags
 from mrok.conf import Settings
+from mrok.constants import RE_EXTENSION_ID, RE_INSTANCE_ID
 from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.identities import register_identity
-
-RE_EXTENSION_ID = re.compile(r"(?i)EXT-\d{4}-\d{4}")
 
 
 async def do_register(
@@ -25,8 +23,14 @@ async def do_register(
 
 def validate_extension_id(extension_id: str):
     if not RE_EXTENSION_ID.fullmatch(extension_id):
-        raise typer.BadParameter("ext_id must match EXT-xxxx-yyyy (case-insensitive)")
+        raise typer.BadParameter("it must match EXT-xxxx-yyyy (case-insensitive)")
     return extension_id
+
+
+def validate_instance_id(instance_id: str):
+    if not RE_INSTANCE_ID.fullmatch(instance_id):
+        raise typer.BadParameter("it must match INS-xxxx-yyyy-zzzz (case-insensitive)")
+    return instance_id
 
 
 def register(app: typer.Typer) -> None:
@@ -36,7 +40,9 @@ def register(app: typer.Typer) -> None:
         extension_id: str = typer.Argument(
             ..., callback=validate_extension_id, help="Extension ID in format EXT-xxxx-yyyy"
         ),
-        instance_id: str = typer.Argument(..., help="Instance ID"),
+        instance_id: str = typer.Argument(
+            ..., callback=validate_instance_id, help="Instance ID in format INS-xxxx-yyyy-zzzz"
+        ),
         output: Path = typer.Argument(
             ...,
             file_okay=True,

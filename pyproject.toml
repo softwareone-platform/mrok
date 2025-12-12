@@ -9,8 +9,8 @@ authors = [
 license = { file = "LICENSE.txt" }
 requires-python = ">=3.12,<4"
 dependencies = [
-    "aiocache>=0.12.3,<0.13.0",
     "asn1crypto>=1.5.1,<2.0.0",
+    "cachetools>=6.2.2,<7.0.0",
     "cryptography>=45.0.7,<46.0.0",
     "dynaconf>=3.2.11,<4.0.0",
     "fastapi-pagination>=0.14.1,<0.15.0",
@@ -50,6 +50,7 @@ dev = [
     "pytest-randomly>=4.0.1,<5.0.0",
     "ruff>=0.14.0,<0.15.0",
     "textual-dev>=1.8.0,<2.0.0",
+    "types-cachetools>=6.2.0.20251022,<7.0.0.0",
     "types-pyyaml>=6.0.12.20250915,<7.0.0.0",
 ]
 
