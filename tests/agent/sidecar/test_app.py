@@ -5,7 +5,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from mrok.agent.sidecar.app import ForwardApp
-from mrok.http.types import ASGIReceive, ASGISend
+from mrok.http.types import ASGIReceive, ASGISend, Message
 
 
 class FakeReader:
@@ -63,6 +63,9 @@ class FakeWriter:
     async def drain(self) -> None:
         await asyncio.sleep(0)  # yield control
 
+    def is_closing(self) -> bool:
+        return True
+
     def close(self) -> None:
         self.closed = True
 
@@ -70,8 +73,8 @@ class FakeWriter:
         await asyncio.sleep(0)
 
 
-def send_collector(messages: list[dict[str, Any]]) -> ASGISend:
-    async def _send(msg: dict[str, Any]) -> None:
+def send_collector(messages: list[Message]) -> ASGISend:
+    async def _send(msg: Message) -> None:
         # keep async signature; no awaits required
         messages.append(msg)
         await asyncio.sleep(0)
@@ -106,9 +109,9 @@ async def test_select_backend_paths(mocker: MockerFixture):
     mocker.patch("asyncio.open_unix_connection", new=fake_open_unix_connection)
 
     app_tcp = ForwardApp(("127.0.0.1", 9000))
-    r1, w1 = await app_tcp.select_backend({}, {})
-    assert isinstance(r1, FakeReader)
+    async with app_tcp.select_backend({}, {}) as (r1, w1):
+        assert isinstance(r1, FakeReader)
 
     app_unix = ForwardApp("/tmp/sock")
-    r2, w2 = await app_unix.select_backend({}, {})
-    assert isinstance(r2, FakeReader)
+    async with app_unix.select_backend({}, {}) as (r2, w2):
+        assert isinstance(r2, FakeReader)

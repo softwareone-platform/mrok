@@ -1,13 +1,17 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import openziti
 from openziti.context import ZitiContext
 
 from mrok.conf import get_settings
-from mrok.http.forwarder import ForwardAppBase
-from mrok.http.types import Scope, StreamReader, StreamWriter
+from mrok.constants import RE_SUBDOMAIN
+from mrok.http.forwarder import BackendUnavailableError, ForwardAppBase, InvalidBackendError
+from mrok.http.pool import ConnectionPool, PoolManager
+from mrok.http.types import Scope, StreamPair
 from mrok.logging import setup_logging
 
 logger = logging.getLogger("mrok.proxy")
@@ -33,6 +37,7 @@ class ProxyApp(ForwardAppBase):
             else f".{settings.proxy.domain}"
         )
         self._ziti_ctx: ZitiContext | None = None
+        self._pool_manager = PoolManager(self.build_connection_pool)
 
     def get_target_from_header(self, headers: dict[str, str], name: str) -> str | None:
         header_value = headers.get(name, "")
@@ -61,12 +66,36 @@ class ProxyApp(ForwardAppBase):
         setup_logging(get_settings())
         self._get_ziti_ctx()
 
+    async def shutdown(self):
+        await self._pool_manager.shutdown()
+
+    async def build_connection_pool(self, key: str) -> ConnectionPool:
+        async def connect():
+            sock = self._get_ziti_ctx().connect(key)
+            reader, writer = await asyncio.open_connection(sock=sock)
+            return reader, writer
+
+        return ConnectionPool(
+            pool_name=key,
+            factory=connect,
+            initial_connections=5,
+            max_size=100,
+            idle_timeout=20.0,
+            reaper_interval=5.0,
+        )
+
+    @asynccontextmanager
     async def select_backend(
         self,
         scope: Scope,
         headers: dict[str, str],
-    ) -> tuple[StreamReader, StreamWriter] | tuple[None, None]:
+    ) -> AsyncGenerator[StreamPair]:
         target_name = self.get_target_name(headers)
-        sock = self._get_ziti_ctx().connect(target_name)
-        reader, writer = await asyncio.open_connection(sock=sock)
-        return reader, writer
+        if not target_name or not RE_SUBDOMAIN.fullmatch(target_name):
+            raise InvalidBackendError()
+        pool = await self._pool_manager.get_pool(target_name)
+        try:
+            async with pool.acquire() as (reader, writer):
+                yield reader, writer
+        except Exception:
+            raise BackendUnavailableError()

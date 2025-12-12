@@ -1,5 +1,4 @@
 import asyncio
-import re
 from typing import Annotated
 
 import typer
@@ -7,10 +6,9 @@ from rich import print
 
 from mrok.cli.commands.admin.utils import parse_tags
 from mrok.conf import Settings
+from mrok.constants import RE_EXTENSION_ID
 from mrok.ziti.api import ZitiManagementAPI
 from mrok.ziti.services import register_service
-
-RE_EXTENSION_ID = re.compile(r"(?i)EXT-\d{4}-\d{4}")
 
 
 async def do_register(settings: Settings, extension_id: str, tags: list[str] | None):
@@ -20,7 +18,7 @@ async def do_register(settings: Settings, extension_id: str, tags: list[str] | N
 
 def validate_extension_id(extension_id: str) -> str:
     if not RE_EXTENSION_ID.fullmatch(extension_id):
-        raise typer.BadParameter("ext_id must match EXT-xxxx-yyyy (case-insensitive)")
+        raise typer.BadParameter("it must match EXT-xxxx-yyyy (case-insensitive)")
     return extension_id
 
 

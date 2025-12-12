@@ -1,7 +1,7 @@
 proxy:
   identity: public
   mode: zrok
-  domain: ext.s1.today
+  domain: exts.s1.today
 
 ziti:
   api:
