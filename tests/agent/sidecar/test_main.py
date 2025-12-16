@@ -6,7 +6,7 @@ from mrok.agent.sidecar import main
 def test_sidecar_agent(mocker: MockerFixture):
     mocked_app = mocker.MagicMock()
     mocked_app_ctor = mocker.patch(
-        "mrok.agent.sidecar.main.ForwardApp",
+        "mrok.agent.sidecar.main.SidecarProxyApp",
         return_value=mocked_app,
     )
     agent = main.SidecarAgent(

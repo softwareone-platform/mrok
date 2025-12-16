@@ -1,6 +1,6 @@
 from pytest_mock import MockerFixture
 
-from mrok.http.protocol import HttpToolsProtocol, MrokHttpToolsProtocol
+from mrok.proxy.protocol import HttpToolsProtocol, MrokHttpToolsProtocol
 
 
 def test_protocol(mocker: MockerFixture):

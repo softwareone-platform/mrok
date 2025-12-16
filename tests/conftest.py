@@ -1,6 +1,7 @@
+import asyncio
 import json
 import tempfile
-from collections.abc import AsyncGenerator, Callable, Generator
+from collections.abc import AsyncGenerator, Generator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -13,8 +14,8 @@ from httpx import ASGITransport, AsyncClient
 from pytest_httpx import HTTPXMock
 
 from mrok.conf import Settings, get_settings
-
-SettingsFactory = Callable[..., Settings]
+from mrok.proxy.types import ASGIReceive, ASGISend, Message
+from tests.types import ReceiveFactory, SendFactory, SettingsFactory
 
 
 @pytest.fixture(scope="session")
@@ -91,7 +92,7 @@ def ziti_bad_request_error() -> dict[str, Any]:
 @pytest.fixture()
 def ziti_identity_json() -> dict[str, Any]:
     return {
-        "ztAPI": "https://ziti.exts.platform.softwareone.com/edge/client/v1",
+        "ztAPI": "https://ziti.platform.softwareone.com/edge/client/v1",
         "ztAPIs": None,
         "configTypes": None,
         "id": {
@@ -99,8 +100,18 @@ def ziti_identity_json() -> dict[str, Any]:
             "cert": "pem:-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
             "ca": "pem:-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
         },
-        "enableHa": None,
-        "mrok": {"identity": "ins-1234-5678-0001.ext-1234-5678"},
+        "enableHa": False,
+        "mrok": {
+            "identity": "ins-0000-0000-0000.ext-0000-0000",
+            "extension": "ext-0000-0000",
+            "instance": "ins-0000-0000-0000",
+            "domain": "exts.platform.softwareone.com",
+            "tags": {
+                "mrok-service": "ext-0000-0000",
+                "mrok-identity-type": "instance",
+                "mrok": "0.4.0",
+            },
+        },
     }
 
 
@@ -231,3 +242,37 @@ async def api_client(
         headers={"Authorization": f"Bearer {jwt_token}"},
     ) as client:
         yield client
+
+
+@pytest.fixture
+def receive_factory() -> ReceiveFactory:
+    def _factory(messages: list[Message] | None = None) -> ASGIReceive:
+        if not messages:
+            messages = [{"type": "http.request", "body": b"", "more_body": False}]
+
+        class Receiver:
+            def __init__(self, messages: list[Message]):
+                self.messages = messages
+
+            async def __call__(self):
+                await asyncio.sleep(0)
+                try:
+                    return self.messages.pop(0)
+                except Exception:
+                    return
+
+        return Receiver(messages)
+
+    return _factory
+
+
+@pytest.fixture
+def send_factory() -> SendFactory:
+    def _factory(collected: list[Message]) -> ASGISend:
+        async def send(message: Message) -> None:
+            await asyncio.sleep(0)
+            collected.append(message)
+
+        return send
+
+    return _factory

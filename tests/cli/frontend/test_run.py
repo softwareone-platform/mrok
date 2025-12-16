@@ -9,10 +9,10 @@ from mrok.cli import app
 
 def test_run(mocker: MockerFixture):
     mocked_run = mocker.patch(
-        "mrok.cli.commands.proxy.run.proxy.run",
+        "mrok.cli.commands.frontend.run.frontend.run",
     )
     runner = CliRunner()
-    result = runner.invoke(app, ["proxy", "run", "my-identity.json"])
+    result = runner.invoke(app, ["frontend", "run", "my-identity.json"])
     assert result.exit_code == 0
     mocked_run.assert_called_once_with(
         Path("my-identity.json"), "127.0.0.1", 8000, (multiprocessing.cpu_count() * 2) + 1
@@ -21,13 +21,13 @@ def test_run(mocker: MockerFixture):
 
 def test_run_with_options(mocker: MockerFixture):
     mocked_run = mocker.patch(
-        "mrok.cli.commands.proxy.run.proxy.run",
+        "mrok.cli.commands.frontend.run.frontend.run",
     )
     runner = CliRunner()
     result = runner.invoke(
         app,
         [
-            "proxy",
+            "frontend",
             "run",
             "my-identity.json",
             "--host",

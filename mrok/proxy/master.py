@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import json
 import logging
 import os
 import signal
@@ -18,14 +17,13 @@ from watchfiles.filters import PythonFilter
 from watchfiles.run import CombinedProcess, start_process
 
 from mrok.conf import get_settings
-from mrok.datastructures import Event, HTTPResponse, Meta, Status
-from mrok.http.config import MrokBackendConfig
-from mrok.http.lifespan import LifespanWrapper
-from mrok.http.middlewares import CaptureMiddleware, MetricsMiddleware
-from mrok.http.server import MrokServer
-from mrok.http.types import ASGIApp
 from mrok.logging import setup_logging
-from mrok.metrics import WorkerMetricsCollector
+from mrok.proxy.config import MrokBackendConfig
+from mrok.proxy.datastructures import Event, HTTPResponse, Status, ZitiIdentity
+from mrok.proxy.metrics import WorkerMetricsCollector
+from mrok.proxy.middlewares import CaptureMiddleware, LifespanMiddleware, MetricsMiddleware
+from mrok.proxy.server import MrokServer
+from mrok.proxy.types import ASGIApp
 
 logger = logging.getLogger("mrok.agent")
 
@@ -52,7 +50,7 @@ def start_events_router(events_pub_port: int, events_sub_port: int):
     try:
         logger.info(f"Events router process started: {os.getpid()}")
         zmq.proxy(frontend, backend)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         pass
     finally:
         frontend.close()
@@ -62,7 +60,7 @@ def start_events_router(events_pub_port: int, events_sub_port: int):
 
 def start_uvicorn_worker(
     worker_id: str,
-    app: ASGIApp,
+    app: ASGIApp | str,
     identity_file: str,
     events_pub_port: int,
     metrics_interval: float = 5.0,
@@ -70,12 +68,10 @@ def start_uvicorn_worker(
     import sys
 
     sys.path.insert(0, os.getcwd())
-    if isinstance(app, str):
-        app = import_from_string(app)
+    asgi_app = app if not isinstance(app, str) else import_from_string(app)
 
     setup_logging(get_settings())
-    identity = json.load(open(identity_file))
-    meta = Meta(**identity["mrok"])
+    identity = ZitiIdentity.load_from_file(identity_file)
     ctx = zmq.asyncio.Context()
     pub = ctx.socket(zmq.PUB)
     pub.connect(f"tcp://localhost:{events_pub_port}")
@@ -83,30 +79,32 @@ def start_uvicorn_worker(
 
     task = None
 
-    async def status_sender():
+    async def status_sender():  # pragma: no cover
         while True:
             snap = await metrics.snapshot()
-            event = Event(type="status", data=Status(meta=meta, metrics=snap))
+            event = Event(type="status", data=Status(meta=identity.mrok, metrics=snap))
             await pub.send_string(event.model_dump_json())
             await asyncio.sleep(metrics_interval)
 
-    async def on_startup():  # noqa
+    async def on_startup():  # pragma: no cover
         nonlocal task
+        await asyncio.sleep(0)
         task = asyncio.create_task(status_sender())
 
-    async def on_shutdown():  # noqa
+    async def on_shutdown():  # pragma: no cover
+        await asyncio.sleep(0)
         if task:
             task.cancel()
 
-    async def on_response_complete(response: HTTPResponse):
+    async def on_response_complete(response: HTTPResponse):  # pragma: no cover
         event = Event(type="response", data=response)
         await pub.send_string(event.model_dump_json())
 
     config = MrokBackendConfig(
-        LifespanWrapper(
+        LifespanMiddleware(
             MetricsMiddleware(
                 CaptureMiddleware(
-                    app,
+                    asgi_app,
                     on_response_complete,
                 ),
                 metrics,
@@ -154,7 +152,7 @@ class MasterBase(ABC):
 
     @abstractmethod
     def get_asgi_app(self):
-        pass
+        raise NotImplementedError()
 
     def setup_signals_handler(self):
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -181,18 +179,6 @@ class MasterBase(ABC):
         logger.info(f"Worker {worker_id} [{p.pid}] started")
         return p
 
-    def start(self):
-        self.start_events_router()
-        self.start_workers()
-        self.monitor_thread.start()
-
-    def stop(self):
-        if self.monitor_thread.is_alive():
-            logger.debug("Wait for monitor worker to exit")
-            self.monitor_thread.join(timeout=MONITOR_THREAD_JOIN_TIMEOUT)
-        self.stop_workers()
-        self.stop_events_router()
-
     def start_events_router(self):
         self.zmq_pubsub_router_process = start_process(
             start_events_router,
@@ -204,20 +190,31 @@ class MasterBase(ABC):
             None,
         )
 
-    def stop_events_router(self):
-        self.zmq_pubsub_router_process.stop(sigint_timeout=5, sigkill_timeout=1)
-
     def start_workers(self):
         for i in range(self.workers):
             worker_id = self.worker_identifiers[i]
             p = self.start_worker(worker_id)
             self.worker_processes[worker_id] = p
 
+    def start(self):
+        self.start_events_router()
+        self.start_workers()
+        self.monitor_thread.start()
+
+    def stop_events_router(self):
+        self.zmq_pubsub_router_process.stop(sigint_timeout=5, sigkill_timeout=1)
+
     def stop_workers(self):
         for process in self.worker_processes.values():
-            if process.is_alive():
+            if process.is_alive():  # pragma: no branch
                 process.stop(sigint_timeout=5, sigkill_timeout=1)
         self.worker_processes.clear()
+
+    def stop(self):
+        if self.monitor_thread.is_alive():  # pragma: no branch
+            self.monitor_thread.join(timeout=MONITOR_THREAD_JOIN_TIMEOUT)
+        self.stop_workers()
+        self.stop_events_router()
 
     def restart(self):
         self.pause_event.set()

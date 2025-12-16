@@ -1,5 +1,5 @@
-from mrok.http.types import ASGIApp
-from mrok.master import MasterBase
+from mrok.proxy.master import MasterBase
+from mrok.proxy.types import ASGIApp
 
 
 class ZiticornAgent(MasterBase):

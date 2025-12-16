@@ -1,9 +1,50 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import core_schema
+
+
+class ZitiId(BaseModel):
+    key: str
+    cert: str
+    ca: str
+
+    @field_validator("key", "cert", "ca", mode="before")
+    @classmethod
+    def strip_pem_prefix(cls, value: str) -> str:
+        if isinstance(value, str) and value.startswith("pem:"):
+            return value[4:]
+        return value
+
+
+class ZitiMrokMeta(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    identity: str
+    extension: str
+    instance: str
+    domain: str | None = None
+    tags: dict[str, str | bool | None] | None = None
+
+
+class ZitiIdentity(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    zt_api: str = Field(validation_alias="ztAPI")
+    id: ZitiId
+    zt_apis: str | None = Field(default=None, validation_alias="ztAPIs")
+    config_types: str | None = Field(default=None, validation_alias="configTypes")
+    enable_ha: bool = Field(default=False, validation_alias="enableHa")
+    mrok: ZitiMrokMeta | None = None
+
+    @staticmethod
+    def load_from_file(path: str | Path) -> ZitiIdentity:
+        path = Path(path)
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return ZitiIdentity.model_validate(data)
 
 
 class FixedSizeByteBuffer:
@@ -140,17 +181,9 @@ class WorkerMetrics(BaseModel):
     process: ProcessMetrics
 
 
-class Meta(BaseModel):
-    identity: str
-    extension: str
-    instance: str
-    domain: str
-    tags: dict[str, str] | None = None
-
-
 class Status(BaseModel):
     type: Literal["status"] = "status"
-    meta: Meta
+    meta: ZitiMrokMeta
     metrics: WorkerMetrics
 
 

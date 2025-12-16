@@ -27,7 +27,7 @@ from textual.widgets.data_table import ColumnKey
 from textual.worker import get_current_worker
 
 from mrok import __version__
-from mrok.datastructures import Event, HTTPHeaders, HTTPResponse, Meta, WorkerMetrics
+from mrok.proxy.datastructures import Event, HTTPHeaders, HTTPResponse, WorkerMetrics, ZitiMrokMeta
 
 
 def build_tree(node, data):
@@ -185,7 +185,7 @@ class InfoPanel(Static):
         #         mem=int(mean([m.process.mem for m in self.workers_metrics.values()])),
         #     )
 
-    def update_meta(self, meta: Meta) -> None:
+    def update_meta(self, meta: ZitiMrokMeta) -> None:
         table = self.query_one(DataTable)
         if len(table.rows) == 0:
             table.add_row("URL", f"https://{meta.extension}.{meta.domain}")

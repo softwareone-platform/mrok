@@ -1,101 +1,175 @@
-import asyncio
+import abc
 import logging
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
-from pathlib import Path
 
-import openziti
-from openziti.context import ZitiContext
+from httpcore import AsyncConnectionPool, Request
 
-from mrok.conf import get_settings
-from mrok.constants import RE_SUBDOMAIN
-from mrok.http.forwarder import BackendUnavailableError, ForwardAppBase, InvalidBackendError
-from mrok.http.pool import ConnectionPool, PoolManager
-from mrok.http.types import Scope, StreamPair
-from mrok.logging import setup_logging
+from mrok.proxy.exceptions import ProxyError
+from mrok.proxy.streams import ASGIRequestBodyStream
+from mrok.proxy.types import ASGIReceive, ASGISend, Scope
 
 logger = logging.getLogger("mrok.proxy")
 
 
-class ProxyError(Exception):
-    pass
+HOP_BY_HOP_HEADERS = [
+    b"connection",
+    b"keep-alive",
+    b"proxy-authenticate",
+    b"proxy-authorization",
+    b"te",
+    b"trailers",
+    b"transfer-encoding",
+    b"upgrade",
+]
 
 
-class ProxyApp(ForwardAppBase):
+class ProxyAppBase(abc.ABC):
     def __init__(
         self,
-        identity_file: str | Path,
         *,
-        read_chunk_size: int = 65536,
+        max_connections: int | None = 1000,
+        max_keepalive_connections: int | None = 10,
+        keepalive_expiry: float | None = 120.0,
+        retries: int = 0,
     ) -> None:
-        super().__init__(read_chunk_size=read_chunk_size)
-        self._identity_file = identity_file
-        settings = get_settings()
-        self._proxy_wildcard_domain = (
-            settings.proxy.domain
-            if settings.proxy.domain[0] == "."
-            else f".{settings.proxy.domain}"
-        )
-        self._ziti_ctx: ZitiContext | None = None
-        self._pool_manager = PoolManager(self.build_connection_pool)
-
-    def get_target_from_header(self, headers: dict[str, str], name: str) -> str | None:
-        header_value = headers.get(name, "")
-        if self._proxy_wildcard_domain in header_value:
-            if ":" in header_value:
-                header_value, _ = header_value.split(":", 1)
-            return header_value[: -len(self._proxy_wildcard_domain)]
-
-    def get_target_name(self, headers: dict[str, str]) -> str:
-        target = self.get_target_from_header(headers, "x-forwarded-host")
-        if not target:
-            target = self.get_target_from_header(headers, "host")
-        if not target:
-            raise ProxyError("Neither Host nor X-Forwarded-Host contain a valid target name")
-        return target
-
-    def _get_ziti_ctx(self) -> ZitiContext:
-        if self._ziti_ctx is None:
-            ctx, err = openziti.load(str(self._identity_file), timeout=10_000)
-            if err != 0:
-                raise Exception(f"Cannot create a Ziti context from the identity file: {err}")
-            self._ziti_ctx = ctx
-        return self._ziti_ctx
-
-    async def startup(self):
-        setup_logging(get_settings())
-        self._get_ziti_ctx()
-
-    async def shutdown(self):
-        await self._pool_manager.shutdown()
-
-    async def build_connection_pool(self, key: str) -> ConnectionPool:
-        async def connect():
-            sock = self._get_ziti_ctx().connect(key)
-            reader, writer = await asyncio.open_connection(sock=sock)
-            return reader, writer
-
-        return ConnectionPool(
-            pool_name=key,
-            factory=connect,
-            initial_connections=5,
-            max_size=100,
-            idle_timeout=20.0,
-            reaper_interval=5.0,
+        self._pool = self.setup_connection_pool(
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+            keepalive_expiry=keepalive_expiry,
+            retries=retries,
         )
 
-    @asynccontextmanager
-    async def select_backend(
+    @abc.abstractmethod
+    def setup_connection_pool(
         self,
-        scope: Scope,
-        headers: dict[str, str],
-    ) -> AsyncGenerator[StreamPair]:
-        target_name = self.get_target_name(headers)
-        if not target_name or not RE_SUBDOMAIN.fullmatch(target_name):
-            raise InvalidBackendError()
-        pool = await self._pool_manager.get_pool(target_name)
+        max_connections: int | None = 1000,
+        max_keepalive_connections: int | None = 10,
+        keepalive_expiry: float | None = 120.0,
+        retries: int = 0,
+    ) -> AsyncConnectionPool:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_upstream_base_url(self, scope: Scope) -> str:
+        raise NotImplementedError()
+
+    async def __call__(self, scope: Scope, receive: ASGIReceive, send: ASGISend) -> None:
+        if scope.get("type") == "lifespan":
+            return
+
+        if scope.get("type") != "http":
+            await self._send_error(send, 500, "Unsupported")
+            return
+
         try:
-            async with pool.acquire() as (reader, writer):
-                yield reader, writer
+            base_url = self.get_upstream_base_url(scope)
+            if base_url.endswith("/"):  # pragma: no cover
+                base_url = base_url[:-1]
+            full_path = self._format_path(scope)
+            url = f"{base_url}{full_path}"
+            method = scope.get("method", "GET").encode()
+            headers = self._prepare_headers(scope)
+
+            body_stream = ASGIRequestBodyStream(receive)
+
+            request = Request(
+                method=method,
+                url=url,
+                headers=headers,
+                content=body_stream,
+            )
+            response = await self._pool.handle_async_request(request)
+            response_headers = []
+            for k, v in response.headers:
+                if k.lower() not in HOP_BY_HOP_HEADERS:
+                    response_headers.append((k, v))
+
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": response.status,
+                    "headers": response_headers,
+                }
+            )
+
+            async for chunk in response.stream:  # type: ignore[union-attr]
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": chunk,
+                        "more_body": True,
+                    }
+                )
+
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
+            await response.aclose()
+
+        except ProxyError as pe:
+            await self._send_error(send, pe.http_status, pe.message)
+
         except Exception:
-            raise BackendUnavailableError()
+            logger.exception("Unexpected error in forwarder")
+            await self._send_error(send, 502, "Bad Gateway")
+
+    async def _send_error(self, send: ASGISend, http_status: int, body: str):
+        try:
+            await send({"type": "http.response.start", "status": http_status, "headers": []})
+            await send({"type": "http.response.body", "body": body.encode()})
+        except Exception as e:  # pragma: no cover
+            logger.error(f"Cannot send error response: {e}")
+
+    def _prepare_headers(self, scope: Scope) -> list[tuple[bytes, bytes]]:
+        headers: list[tuple[bytes, bytes]] = []
+        scope_headers = scope.get("headers", [])
+
+        for k, v in scope_headers:
+            if k.lower() not in HOP_BY_HOP_HEADERS:
+                headers.append((k, v))
+
+        self._merge_x_forwarded(headers, scope)
+
+        return headers
+
+    def _find_header(self, headers: list[tuple[bytes, bytes]], name: bytes) -> int | None:
+        """Return index of header `name` in `headers`, or None if missing."""
+        lname = name.lower()
+        for i, (k, _) in enumerate(headers):
+            if k.lower() == lname:
+                return i
+        return None
+
+    def _merge_x_forwarded(self, headers: list[tuple[bytes, bytes]], scope: Scope) -> None:
+        client = scope.get("client")
+        if client:
+            client_ip = client[0].encode()
+            idx = self._find_header(headers, b"x-forwarded-for")
+            if idx is None:
+                headers.append((b"x-forwarded-for", client_ip))
+            else:
+                k, v = headers[idx]
+                headers[idx] = (k, v + b", " + client_ip)
+
+        server = scope.get("server")
+        if server:
+            if self._find_header(headers, b"x-forwarded-host") is None:
+                headers.append((b"x-forwarded-host", server[0].encode()))
+            if server[1] and self._find_header(headers, b"x-forwarded-port") is None:
+                headers.append((b"x-forwarded-port", str(server[1]).encode()))
+
+        # Always set the protocol to https for upstream
+        idx_proto = self._find_header(headers, b"x-forwarded-proto")
+        if idx_proto is None:
+            headers.append((b"x-forwarded-proto", b"https"))
+        else:
+            k, _ = headers[idx_proto]
+            headers[idx_proto] = (k, b"https")
+
+    def _format_path(self, scope: Scope) -> str:
+        raw_path = scope.get("raw_path")
+        if raw_path:
+            return raw_path.decode()
+        q = scope.get("query_string", b"")
+        path = scope.get("path", "/")
+        path_qs = path
+        if q:
+            path_qs += "?" + q.decode()
+        return path_qs
