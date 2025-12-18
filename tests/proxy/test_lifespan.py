@@ -1,6 +1,6 @@
 from pytest_mock import MockerFixture
 
-from mrok.http.lifespan import MrokLifespan
+from mrok.proxy.lifespan import MrokLifespan
 
 
 def test_lifespan(mocker: MockerFixture):

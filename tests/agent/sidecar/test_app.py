@@ -1,117 +1,105 @@
-import asyncio
-from typing import Any
-
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.agent.sidecar.app import ForwardApp
-from mrok.http.types import ASGIReceive, ASGISend, Message
+from mrok.agent.sidecar.app import SidecarProxyApp
 
 
-class FakeReader:
-    def __init__(self, chunks: list[bytes]):
-        # a single bytes buffer that we will serve from
-        self._buffer = b"".join(chunks)
-        self._pos = 0
+@pytest.mark.parametrize(
+    ("target", "addr"),
+    [
+        ("127.0.0.1:1234", "127.0.0.1:1234"),
+        (":8282", "127.0.0.1:8282"),
+        (("localhost", 1838), "localhost:1838"),
+    ],
+)
+def test_init(
+    mocker: MockerFixture,
+    target: str | tuple[str, int],
+    addr: str,
+):
+    m_async_pool_ctor = mocker.patch("mrok.agent.sidecar.app.AsyncConnectionPool")
+    app = SidecarProxyApp(
+        target,
+        max_connections=5000,
+        max_keepalive_connections=5,
+        keepalive_expiry=60,
+        retries=1,
+    )
 
-    async def readline(self) -> bytes:
-        # return up to and including first CRLF
-        if self._pos >= len(self._buffer):
-            return b""
-        idx = self._buffer.find(b"\n", self._pos)
-        if idx == -1:
-            # return rest
-            data = self._buffer[self._pos :]
-            self._pos = len(self._buffer)
-            return data
-        idx += 1
-        data = self._buffer[self._pos : idx]
-        self._pos = idx
-        return data
+    m_async_pool_ctor.assert_called_once_with(
+        max_connections=5000,
+        max_keepalive_connections=5,
+        keepalive_expiry=60,
+        retries=1,
+    )
 
-    async def read(self, n: int = -1) -> bytes:
-        if self._pos >= len(self._buffer):
-            return b""
-        if n < 0:
-            data = self._buffer[self._pos :]
-            self._pos = len(self._buffer)
-            return data
-        data = self._buffer[self._pos : self._pos + n]
-        self._pos += len(data)
-        return data
-
-    async def readexactly(self, n: int) -> bytes:
-        # simplistic: if not enough, raise IncompleteReadError
-        remaining = len(self._buffer) - self._pos
-        if remaining < n:
-            chunk = self._buffer[self._pos :]
-            self._pos = len(self._buffer)
-            raise asyncio.IncompleteReadError(partial=chunk, expected=n)
-        data = self._buffer[self._pos : self._pos + n]
-        self._pos += n
-        return data
+    assert app._target_type == "tcp"
+    assert app._target_address == addr
 
 
-class FakeWriter:
-    def __init__(self):
-        self.buffer = bytearray()
-        self.closed = False
+def test_init_uds(
+    mocker: MockerFixture,
+):
+    m_async_pool_ctor = mocker.patch("mrok.agent.sidecar.app.AsyncConnectionPool")
+    app = SidecarProxyApp(
+        "/path/to/proxy.sock",
+        max_connections=5000,
+        max_keepalive_connections=5,
+        keepalive_expiry=60,
+        retries=1,
+    )
 
-    def write(self, data: bytes) -> None:
-        self.buffer.extend(data)
+    m_async_pool_ctor.assert_called_once_with(
+        max_connections=5000,
+        max_keepalive_connections=5,
+        keepalive_expiry=60,
+        retries=1,
+        uds="/path/to/proxy.sock",
+    )
 
-    async def drain(self) -> None:
-        await asyncio.sleep(0)  # yield control
-
-    def is_closing(self) -> bool:
-        return True
-
-    def close(self) -> None:
-        self.closed = True
-
-    async def wait_closed(self) -> None:
-        await asyncio.sleep(0)
-
-
-def send_collector(messages: list[Message]) -> ASGISend:
-    async def _send(msg: Message) -> None:
-        # keep async signature; no awaits required
-        messages.append(msg)
-        await asyncio.sleep(0)
-
-    return _send
+    assert app._target_type == "unix"
+    assert app._target_address == "/path/to/proxy.sock"
 
 
-def make_receive(events: list[dict[str, Any]]) -> ASGIReceive:
-    queue: list[dict[str, Any]] = list(events)
+@pytest.mark.parametrize(
+    "target",
+    [
+        ("a",),
+        ("a", "b", "c"),
+    ],
+)
+def test_init_invalid_target(
+    mocker: MockerFixture,
+    target: tuple,
+):
+    with pytest.raises(Exception) as cv:
+        SidecarProxyApp(
+            target,
+            max_connections=5000,
+            max_keepalive_connections=5,
+            keepalive_expiry=60,
+            retries=1,
+        )
+    assert str(cv.value) == f"Invalid target address: {target}"
 
-    async def _receive() -> dict[str, Any]:
-        if not queue:
-            await asyncio.sleep(0)
-            return {"type": "http.request", "body": b"", "more_body": False}
-        return queue.pop(0)
 
-    return _receive
+def test_get_upstream_base_url_tcp():
+    app = SidecarProxyApp(
+        "1.2.2.3:8000",
+        max_connections=5000,
+        max_keepalive_connections=5,
+        keepalive_expiry=60,
+        retries=1,
+    )
+    assert app.get_upstream_base_url({}) == "http://1.2.2.3:8000"
 
 
-@pytest.mark.asyncio
-async def test_select_backend_paths(mocker: MockerFixture):
-    # Patch asyncio open_connection and open_unix_connection to return FakeReader/Writer
-    async def fake_open_connection(host, port):
-        await asyncio.sleep(0)
-        return FakeReader([b"HTTP/1.1 200 OK\r\n\r\n", b"ok"]), FakeWriter()
-
-    async def fake_open_unix_connection(path):
-        await asyncio.sleep(0)
-        return FakeReader([b"HTTP/1.1 200 OK\r\n\r\n", b"ok"]), FakeWriter()
-
-    mocker.patch("asyncio.open_connection", new=fake_open_connection)
-    mocker.patch("asyncio.open_unix_connection", new=fake_open_unix_connection)
-
-    app_tcp = ForwardApp(("127.0.0.1", 9000))
-    async with app_tcp.select_backend({}, {}) as (r1, w1):
-        assert isinstance(r1, FakeReader)
-
-    app_unix = ForwardApp("/tmp/sock")
-    async with app_unix.select_backend({}, {}) as (r2, w2):
-        assert isinstance(r2, FakeReader)
+def test_get_upstream_base_url_unix():
+    app = SidecarProxyApp(
+        "/path/to/proxy.sock",
+        max_connections=5000,
+        max_keepalive_connections=5,
+        keepalive_expiry=60,
+        retries=1,
+    )
+    assert app.get_upstream_base_url({}) == "http://localhost"

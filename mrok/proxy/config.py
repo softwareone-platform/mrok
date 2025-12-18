@@ -8,12 +8,12 @@ from typing import Any
 import openziti
 from uvicorn import config
 
-from mrok.http.protocol import MrokHttpToolsProtocol
-from mrok.http.types import ASGIApp
+from mrok.proxy.protocol import MrokHttpToolsProtocol
+from mrok.proxy.types import ASGIApp
 
 logger = logging.getLogger("mrok.proxy")
 
-config.LIFESPAN["auto"] = "mrok.http.lifespan:MrokLifespan"
+config.LIFESPAN["auto"] = "mrok.proxy.lifespan:MrokLifespan"
 
 
 class MrokBackendConfig(config.Config):

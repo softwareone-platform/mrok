@@ -1,19 +1,22 @@
 import asyncio
-import inspect
 import logging
 import time
-from collections.abc import Callable, Coroutine
-from typing import Any
 
-from mrok.datastructures import FixedSizeByteBuffer, HTTPHeaders, HTTPRequest, HTTPResponse
-from mrok.http.constants import MAX_REQUEST_BODY_BYTES, MAX_RESPONSE_BODY_BYTES
-from mrok.http.types import ASGIApp, ASGIReceive, ASGISend, Message, Scope
-from mrok.http.utils import must_capture_request, must_capture_response
-from mrok.metrics import WorkerMetricsCollector
+from mrok.proxy.constants import MAX_REQUEST_BODY_BYTES, MAX_RESPONSE_BODY_BYTES
+from mrok.proxy.datastructures import FixedSizeByteBuffer, HTTPHeaders, HTTPRequest, HTTPResponse
+from mrok.proxy.metrics import WorkerMetricsCollector
+from mrok.proxy.types import (
+    ASGIApp,
+    ASGIReceive,
+    ASGISend,
+    LifespanCallback,
+    Message,
+    ResponseCompleteCallback,
+    Scope,
+)
+from mrok.proxy.utils import must_capture_request, must_capture_response
 
 logger = logging.getLogger("mrok.proxy")
-
-ResponseCompleteCallback = Callable[[HTTPResponse], Coroutine[Any, Any, None] | None]
 
 
 class CaptureMiddleware:
@@ -92,22 +95,11 @@ class CaptureMiddleware:
             body=resp_buf.getvalue() if state["capture_resp_body"] else None,
             body_truncated=resp_buf.overflow if state["capture_resp_body"] else None,
         )
-        await asyncio.create_task(self.handle_callback(response))
-
-    async def handle_callback(self, response: HTTPResponse):
-        try:
-            if inspect.iscoroutinefunction(self._on_response_complete):
-                await self._on_response_complete(response)
-            else:
-                await asyncio.get_running_loop().run_in_executor(
-                    None, self._on_response_complete, response
-                )
-        except Exception:
-            logger.exception("Error invoking callback")
+        asyncio.create_task(self._on_response_complete(response))
 
 
 class MetricsMiddleware:
-    def __init__(self, app, metrics: WorkerMetricsCollector):
+    def __init__(self, app: ASGIApp, metrics: WorkerMetricsCollector):
         self.app = app
         self.metrics = metrics
 
@@ -116,11 +108,11 @@ class MetricsMiddleware:
             return await self.app(scope, receive, send)
 
         start_time = await self.metrics.on_request_start(scope)
-        status_code = 500  # default if app errors early
+        status_code = 500
 
         async def wrapped_receive():
             msg = await receive()
-            if msg["type"] == "http.request" and msg.get("body"):
+            if msg["type"] == "http.request" and msg.get("body"):  # pragma: no branch
                 await self.metrics.on_request_body(len(msg["body"]))
             return msg
 
@@ -131,7 +123,7 @@ class MetricsMiddleware:
                 status_code = msg["status"]
                 await self.metrics.on_response_start(status_code)
 
-            elif msg["type"] == "http.response.body":
+            elif msg["type"] == "http.response.body":  # pragma: no branch
                 body = msg.get("body", b"")
                 await self.metrics.on_response_chunk(len(body))
 
@@ -141,3 +133,32 @@ class MetricsMiddleware:
             await self.app(scope, wrapped_receive, wrapped_send)
         finally:
             await self.metrics.on_request_end(start_time, status_code)
+
+
+class LifespanMiddleware:
+    def __init__(
+        self,
+        app,
+        on_startup: LifespanCallback | None = None,
+        on_shutdown: LifespanCallback | None = None,
+    ):
+        self.app = app
+        self.on_startup = on_startup
+        self.on_shutdown = on_shutdown
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            while True:
+                event = await receive()
+                if event["type"] == "lifespan.startup":
+                    if self.on_startup:  # pragma: no branch
+                        await self.on_startup()
+                    await send({"type": "lifespan.startup.complete"})
+
+                elif event["type"] == "lifespan.shutdown":
+                    if self.on_shutdown:  # pragma: no branch
+                        await self.on_shutdown()
+                    await send({"type": "lifespan.shutdown.complete"})
+                    break
+        else:
+            await self.app(scope, receive, send)

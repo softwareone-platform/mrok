@@ -3,7 +3,7 @@ from typing import Annotated
 
 import typer
 
-from mrok import proxy
+from mrok import frontend
 from mrok.cli.utils import number_of_workers
 
 default_workers = number_of_workers()
@@ -11,7 +11,7 @@ default_workers = number_of_workers()
 
 def register(app: typer.Typer) -> None:
     @app.command("run")
-    def run_proxy(
+    def run_frontend(
         ctx: typer.Context,
         identity_file: Path = typer.Argument(
             ...,
@@ -45,5 +45,5 @@ def register(app: typer.Typer) -> None:
             ),
         ] = default_workers,
     ):
-        """Run the mrok proxy with Gunicorn and Uvicorn workers."""
-        proxy.run(identity_file, host, port, workers)
+        """Run the mrok frontend with Gunicorn and Uvicorn workers."""
+        frontend.run(identity_file, host, port, workers)

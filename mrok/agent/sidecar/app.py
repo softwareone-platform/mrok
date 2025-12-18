@@ -1,51 +1,77 @@
-import asyncio
 import logging
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
-from mrok.http.forwarder import ForwardAppBase
-from mrok.http.pool import ConnectionPool
-from mrok.http.types import Scope, StreamPair
+from httpcore import AsyncConnectionPool
+
+from mrok.proxy.app import ProxyAppBase
+from mrok.proxy.types import Scope
 
 logger = logging.getLogger("mrok.agent")
 
 
-class ForwardApp(ForwardAppBase):
+TargetType = Literal["tcp", "unix"]
+
+
+class SidecarProxyApp(ProxyAppBase):
     def __init__(
         self,
-        target_address: str | Path | tuple[str, int],
-        read_chunk_size: int = 65536,
-    ) -> None:
+        target: str | Path | tuple[str, int],
+        *,
+        max_connections=1000,
+        max_keepalive_connections=10,
+        keepalive_expiry=120,
+        retries=0,
+    ):
+        self._target = target
+        self._target_type, self._target_address = self._parse_target()
         super().__init__(
-            read_chunk_size=read_chunk_size,
-        )
-        self._target_address = target_address
-        self._pool = ConnectionPool(
-            pool_name=str(self._target_address),
-            factory=self.connect,
-            initial_connections=5,
-            max_size=100,
-            idle_timeout=20.0,
-            reaper_interval=5.0,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+            keepalive_expiry=keepalive_expiry,
+            retries=retries,
         )
 
-    async def connect(self) -> StreamPair:
-        if isinstance(self._target_address, tuple):
-            return await asyncio.open_connection(*self._target_address)
-        return await asyncio.open_unix_connection(str(self._target_address))
-
-    async def startup(self):
-        await self._pool.start()
-
-    async def shutdown(self):
-        await self._pool.stop()
-
-    @asynccontextmanager
-    async def select_backend(
+    def setup_connection_pool(
         self,
-        scope: Scope,
-        headers: dict[str, str],
-    ) -> AsyncGenerator[StreamPair, None]:
-        async with self._pool.acquire() as (reader, writer):
-            yield reader, writer
+        max_connections: int | None = 1000,
+        max_keepalive_connections: int | None = 10,
+        keepalive_expiry: float | None = 120.0,
+        retries: int = 0,
+    ) -> AsyncConnectionPool:
+        if self._target_type == "unix":
+            return AsyncConnectionPool(
+                max_connections=max_connections,
+                max_keepalive_connections=max_keepalive_connections,
+                keepalive_expiry=keepalive_expiry,
+                retries=retries,
+                uds=self._target_address,
+            )
+        return AsyncConnectionPool(
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+            keepalive_expiry=keepalive_expiry,
+            retries=retries,
+        )
+
+    def get_upstream_base_url(self, scope: Scope) -> str:
+        if self._target_type == "unix":
+            return "http://localhost"
+        return f"http://{self._target_address}"
+
+    def _parse_target(self) -> tuple[TargetType, str]:
+        if isinstance(self._target, Path) or (
+            isinstance(self._target, str) and ":" not in self._target
+        ):
+            return "unix", str(self._target)
+
+        if isinstance(self._target, str) and ":" in self._target:
+            host, port = str(self._target).split(":", 1)
+            host = host or "127.0.0.1"
+        elif isinstance(self._target, tuple) and len(self._target) == 2:
+            host = self._target[0]
+            port = str(self._target[1])
+        else:
+            raise Exception(f"Invalid target address: {self._target}")
+
+        return "tcp", f"{host}:{port}"

@@ -1,8 +1,8 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.http.config import MrokBackendConfig
-from mrok.http.server import MrokServer
+from mrok.proxy.config import MrokBackendConfig
+from mrok.proxy.server import MrokServer
 
 
 @pytest.mark.asyncio

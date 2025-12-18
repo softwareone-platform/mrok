@@ -6,9 +6,8 @@ from gunicorn.app.base import BaseApplication
 from uvicorn_worker import UvicornWorker
 
 from mrok.conf import get_settings
-from mrok.http.lifespan import LifespanWrapper
+from mrok.frontend.app import FrontendProxyApp
 from mrok.logging import get_logging_config
-from mrok.proxy.app import ProxyApp
 
 
 class MrokUvicornWorker(UvicornWorker):
@@ -40,19 +39,14 @@ def run(
     port: int,
     workers: int,
 ):
-    proxy_app = ProxyApp(identity_file)
+    app = FrontendProxyApp(str(identity_file))
 
-    asgi_app = LifespanWrapper(
-        proxy_app,
-        proxy_app.startup,
-        proxy_app.shutdown,
-    )
     options = {
         "bind": f"{host}:{port}",
         "workers": workers,
-        "worker_class": "mrok.proxy.main.MrokUvicornWorker",
+        "worker_class": "mrok.frontend.main.MrokUvicornWorker",
         "logconfig_dict": get_logging_config(get_settings()),
         "reload": False,
     }
 
-    StandaloneApplication(asgi_app, options).run()
+    StandaloneApplication(app, options).run()

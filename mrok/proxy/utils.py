@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 
-from mrok.http.constants import (
+from mrok.proxy.constants import (
     BINARY_CONTENT_TYPES,
     BINARY_PREFIXES,
     MAX_REQUEST_BODY_BYTES,
