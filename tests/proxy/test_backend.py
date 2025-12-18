@@ -2,7 +2,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from mrok.proxy.backend import AIOZitiNetworkBackend
-from mrok.proxy.exceptions import TargetUnavailableError
+from mrok.proxy.exceptions import InvalidTargetError, TargetUnavailableError
 
 
 @pytest.mark.asyncio
@@ -67,11 +67,22 @@ async def test_connect_tcp_load_context_error(mocker: MockerFixture):
 @pytest.mark.asyncio
 async def test_connect_tcp_target_unavailable(mocker: MockerFixture):
     mocked_ziti_ctx = mocker.MagicMock()
-    mocked_ziti_ctx.connect.side_effect = Exception("service not found")
+    mocked_ziti_ctx.connect.side_effect = Exception(-24, "service unavailable")
     mocker.patch("mrok.proxy.backend.openziti.load", return_value=(mocked_ziti_ctx, 0))
 
     backend = AIOZitiNetworkBackend("my_identity_file.json")
     with pytest.raises(TargetUnavailableError):
+        await backend.connect_tcp("ziti-svc", 0)
+
+
+@pytest.mark.asyncio
+async def test_connect_tcp_target_doesnt_exist(mocker: MockerFixture):
+    mocked_ziti_ctx = mocker.MagicMock()
+    mocked_ziti_ctx.connect.side_effect = Exception(-18, "service doesn't exist")
+    mocker.patch("mrok.proxy.backend.openziti.load", return_value=(mocked_ziti_ctx, 0))
+
+    backend = AIOZitiNetworkBackend("my_identity_file.json")
+    with pytest.raises(InvalidTargetError):
         await backend.connect_tcp("ziti-svc", 0)
 
 
