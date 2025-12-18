@@ -6,7 +6,7 @@ import openziti
 from httpcore import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
 from openziti.context import ZitiContext
 
-from mrok.proxy.exceptions import TargetUnavailableError
+from mrok.proxy.exceptions import InvalidTargetError, TargetUnavailableError
 from mrok.proxy.streams import AIONetworkStream
 
 
@@ -37,7 +37,9 @@ class AIOZitiNetworkBackend(AsyncNetworkBackend):
             reader, writer = await asyncio.open_connection(sock=sock)
             return AIONetworkStream(reader, writer)
         except Exception as e:
-            raise TargetUnavailableError() from e
+            if e.args and e.args[0] == -24:  # the service exists but is not available
+                raise TargetUnavailableError() from e
+            raise InvalidTargetError() from e
 
     async def sleep(self, seconds: float) -> None:
         await asyncio.sleep(seconds)
