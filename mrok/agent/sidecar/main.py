@@ -18,10 +18,10 @@ class SidecarAgent(MasterBase):
     ):
         super().__init__(
             identity_file,
-            workers,
-            False,
-            publishers_port,
-            subscribers_port,
+            workers=workers,
+            reload=False,
+            events_pub_port=publishers_port,
+            events_sub_port=subscribers_port,
         )
         self._target = target
 

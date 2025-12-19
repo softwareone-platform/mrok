@@ -1,5 +1,3 @@
-import asyncio
-import contextlib
 import logging
 import os
 import signal
@@ -10,20 +8,14 @@ from pathlib import Path
 from uuid import uuid4
 
 import zmq
-import zmq.asyncio
-from uvicorn.importer import import_from_string
 from watchfiles import watch
 from watchfiles.filters import PythonFilter
 from watchfiles.run import CombinedProcess, start_process
 
 from mrok.conf import get_settings
 from mrok.logging import setup_logging
-from mrok.proxy.config import MrokBackendConfig
-from mrok.proxy.datastructures import Event, HTTPResponse, Status, ZitiIdentity
-from mrok.proxy.metrics import WorkerMetricsCollector
-from mrok.proxy.middlewares import CaptureMiddleware, LifespanMiddleware, MetricsMiddleware
-from mrok.proxy.server import MrokServer
 from mrok.proxy.types import ASGIApp
+from mrok.proxy.worker import Worker
 
 logger = logging.getLogger("mrok.agent")
 
@@ -62,76 +54,41 @@ def start_uvicorn_worker(
     worker_id: str,
     app: ASGIApp | str,
     identity_file: str,
+    events_enabled: bool,
     events_pub_port: int,
     metrics_interval: float = 5.0,
 ):
     import sys
 
     sys.path.insert(0, os.getcwd())
-    asgi_app = app if not isinstance(app, str) else import_from_string(app)
 
-    setup_logging(get_settings())
-    identity = ZitiIdentity.load_from_file(identity_file)
-    ctx = zmq.asyncio.Context()
-    pub = ctx.socket(zmq.PUB)
-    pub.connect(f"tcp://localhost:{events_pub_port}")
-    metrics = WorkerMetricsCollector(worker_id)
-
-    task = None
-
-    async def status_sender():  # pragma: no cover
-        while True:
-            snap = await metrics.snapshot()
-            event = Event(type="status", data=Status(meta=identity.mrok, metrics=snap))
-            await pub.send_string(event.model_dump_json())
-            await asyncio.sleep(metrics_interval)
-
-    async def on_startup():  # pragma: no cover
-        nonlocal task
-        await asyncio.sleep(0)
-        task = asyncio.create_task(status_sender())
-
-    async def on_shutdown():  # pragma: no cover
-        await asyncio.sleep(0)
-        if task:
-            task.cancel()
-
-    async def on_response_complete(response: HTTPResponse):  # pragma: no cover
-        event = Event(type="response", data=response)
-        await pub.send_string(event.model_dump_json())
-
-    config = MrokBackendConfig(
-        LifespanMiddleware(
-            MetricsMiddleware(
-                CaptureMiddleware(
-                    asgi_app,
-                    on_response_complete,
-                ),
-                metrics,
-            ),
-            on_startup=on_startup,
-            on_shutdown=on_shutdown,
-        ),
+    worker = Worker(
+        worker_id,
+        app,
         identity_file,
+        events_enabled=events_enabled,
+        events_publisher_port=events_pub_port,
+        metrics_interval=metrics_interval,
     )
-    server = MrokServer(config)
-    with contextlib.suppress(KeyboardInterrupt, asyncio.CancelledError):
-        server.run()
+    worker.run()
 
 
 class MasterBase(ABC):
     def __init__(
         self,
         identity_file: str,
-        workers: int,
-        reload: bool,
-        events_pub_port: int,
-        events_sub_port: int,
+        *,
+        workers: int = 4,
+        reload: bool = False,
+        events_enabled: bool = True,
+        events_pub_port: int = 50000,
+        events_sub_port: int = 50001,
         metrics_interval: float = 5.0,
     ):
         self.identity_file = identity_file
         self.workers = workers
         self.reload = reload
+        self.events_enabled = events_enabled
         self.events_pub_port = events_pub_port
         self.events_sub_port = events_sub_port
         self.metrics_interval = metrics_interval
@@ -171,6 +128,7 @@ class MasterBase(ABC):
                 worker_id,
                 self.get_asgi_app(),
                 self.identity_file,
+                self.events_enabled,
                 self.events_pub_port,
                 self.metrics_interval,
             ),

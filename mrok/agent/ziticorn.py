@@ -12,7 +12,13 @@ class ZiticornAgent(MasterBase):
         publishers_port: int = 50000,
         subscribers_port: int = 50001,
     ):
-        super().__init__(identity_file, workers, reload, publishers_port, subscribers_port)
+        super().__init__(
+            identity_file,
+            workers=workers,
+            reload=reload,
+            events_pub_port=publishers_port,
+            events_sub_port=subscribers_port,
+        )
         self.app = app
 
     def get_asgi_app(self):
