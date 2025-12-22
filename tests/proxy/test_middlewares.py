@@ -4,56 +4,9 @@ import pytest
 from pytest_mock import MockerFixture
 
 from mrok.proxy.datastructures import HTTPResponse
-from mrok.proxy.middlewares import CaptureMiddleware, LifespanMiddleware, MetricsMiddleware
+from mrok.proxy.middlewares import CaptureMiddleware, MetricsMiddleware
 from mrok.proxy.types import Message
 from tests.types import ReceiveFactory, SendFactory
-
-
-@pytest.mark.asyncio
-async def test_lifespan_events(
-    mocker: MockerFixture,
-    receive_factory: ReceiveFactory,
-    send_factory: SendFactory,
-):
-    m_app = mocker.AsyncMock()
-    m_on_startup = mocker.AsyncMock()
-    m_on_shutdown = mocker.AsyncMock()
-
-    sent: list[Message] = []
-    receive = receive_factory([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
-    send = send_factory(sent)
-
-    middleware = LifespanMiddleware(m_app, on_startup=m_on_startup, on_shutdown=m_on_shutdown)
-
-    await middleware({"type": "lifespan"}, receive, send)
-    assert sent == [
-        {"type": "lifespan.startup.complete"},
-        {"type": "lifespan.shutdown.complete"},
-    ]
-    m_on_startup.assert_awaited_once()
-    m_on_shutdown.assert_awaited_once()
-    m_app.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_lifespan_invoke_app(
-    mocker: MockerFixture,
-    receive_factory: ReceiveFactory,
-    send_factory: SendFactory,
-):
-    m_app = mocker.AsyncMock()
-    m_on_startup = mocker.AsyncMock()
-    m_on_shutdown = mocker.AsyncMock()
-
-    receive = receive_factory()
-    m_send = mocker.AsyncMock()
-
-    middleware = LifespanMiddleware(m_app, on_startup=m_on_startup, on_shutdown=m_on_shutdown)
-
-    await middleware({"type": "http"}, receive, m_send)
-    m_on_startup.assert_not_awaited()
-    m_on_shutdown.assert_not_awaited()
-    m_app.assert_awaited_once_with({"type": "http"}, receive, m_send)
 
 
 @pytest.mark.asyncio
