@@ -12,7 +12,7 @@ def test_run(mocker: MockerFixture):
     m_asgi_app_ctor = mocker.patch("mrok.frontend.main.FrontendProxyApp", return_value=m_asgi_app)
     m_app = mocker.MagicMock()
     m_standalone_app = mocker.patch("mrok.frontend.main.StandaloneApplication", return_value=m_app)
-    run("my-identity.json", "localhost", 2423, 4)
+    run("my-identity.json", "localhost", 2423, 4, 1001, 323, 99.5)
     m_standalone_app.assert_called_once_with(
         m_asgi_app,
         {
@@ -24,4 +24,9 @@ def test_run(mocker: MockerFixture):
         },
     )
     m_app.run.assert_called_once()
-    m_asgi_app_ctor.assert_called_once_with("my-identity.json")
+    m_asgi_app_ctor.assert_called_once_with(
+        "my-identity.json",
+        max_connections=1001,
+        max_keepalive_connections=323,
+        keepalive_expiry=99.5,
+    )

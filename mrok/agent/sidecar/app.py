@@ -18,10 +18,10 @@ class SidecarProxyApp(ProxyAppBase):
         self,
         target: str | Path | tuple[str, int],
         *,
-        max_connections=1000,
-        max_keepalive_connections=10,
-        keepalive_expiry=120,
-        retries=0,
+        max_connections: int | None = 10,
+        max_keepalive_connections: int | None = None,
+        keepalive_expiry: float | None = None,
+        retries: int = 0,
     ):
         self._target = target
         self._target_type, self._target_address = self._parse_target()
@@ -34,10 +34,10 @@ class SidecarProxyApp(ProxyAppBase):
 
     def setup_connection_pool(
         self,
-        max_connections: int | None = 1000,
-        max_keepalive_connections: int | None = 10,
-        keepalive_expiry: float | None = 120.0,
-        retries: int = 0,
+        max_connections: int | None,
+        max_keepalive_connections: int | None,
+        keepalive_expiry: float | None,
+        retries: int,
     ) -> AsyncConnectionPool:
         if self._target_type == "unix":
             return AsyncConnectionPool(

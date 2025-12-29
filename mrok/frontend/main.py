@@ -38,8 +38,16 @@ def run(
     host: str,
     port: int,
     workers: int,
+    max_connections: int | None,
+    max_keepalive_connections: int | None,
+    keepalive_expiry: float | None,
 ):
-    app = FrontendProxyApp(str(identity_file))
+    app = FrontendProxyApp(
+        str(identity_file),
+        max_connections=max_connections,
+        max_keepalive_connections=max_keepalive_connections,
+        keepalive_expiry=keepalive_expiry,
+    )
 
     options = {
         "bind": f"{host}:{port}",

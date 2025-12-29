@@ -25,10 +25,55 @@ def register(app: typer.Typer) -> None:
             typer.Option(
                 "--workers",
                 "-w",
-                help=f"Number of workers. Default: {default_workers}",
+                help="Number of workers.",
                 show_default=True,
             ),
         ] = default_workers,
+        max_connections: Annotated[
+            int,
+            typer.Option(
+                "--max-pool-connections",
+                help=(
+                    "The maximum number of concurrent HTTP connections that "
+                    "the pool should allow. Any attempt to send a request on a pool that "
+                    "would exceed this amount will block until a connection is available."
+                ),
+                show_default=True,
+            ),
+        ] = 10,
+        max_keepalive_connections: Annotated[
+            int | None,
+            typer.Option(
+                "--max-pool-keepalive-connections",
+                help=(
+                    "The maximum number of idle HTTP connections "
+                    "that will be maintained in the pool."
+                ),
+                show_default=True,
+            ),
+        ] = None,
+        keepalive_expiry: Annotated[
+            float | None,
+            typer.Option(
+                "--max-pool-keepalive-expiry",
+                help=(
+                    "The duration in seconds that an idle HTTP connection "
+                    "may be maintained for before being expired from the pool."
+                ),
+                show_default=True,
+            ),
+        ] = None,
+        retries: Annotated[
+            int,
+            typer.Option(
+                "--max-pool-connect-retries",
+                help=(
+                    "The duration in seconds that an idle HTTP connection "
+                    "may be maintained for before being expired from the pool."
+                ),
+                show_default=True,
+            ),
+        ] = 0,
         publishers_port: Annotated[
             int,
             typer.Option(
@@ -65,6 +110,10 @@ def register(app: typer.Typer) -> None:
             str(identity_file),
             target_addr,
             workers=workers,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+            keepalive_expiry=keepalive_expiry,
+            retries=retries,
             publishers_port=publishers_port,
             subscribers_port=subscribers_port,
         )

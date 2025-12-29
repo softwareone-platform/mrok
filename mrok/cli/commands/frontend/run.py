@@ -44,6 +44,48 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = default_workers,
+        max_connections: Annotated[
+            int,
+            typer.Option(
+                "--max-pool-connections",
+                help=(
+                    "The maximum number of concurrent HTTP connections that "
+                    "the pool should allow. Any attempt to send a request on a pool that "
+                    "would exceed this amount will block until a connection is available."
+                ),
+                show_default=True,
+            ),
+        ] = 1000,
+        max_keepalive_connections: Annotated[
+            int | None,
+            typer.Option(
+                "--max-pool-keepalive-connections",
+                help=(
+                    "The maximum number of idle HTTP connections "
+                    "that will be maintained in the pool."
+                ),
+                show_default=True,
+            ),
+        ] = 100,
+        keepalive_expiry: Annotated[
+            float | None,
+            typer.Option(
+                "--max-pool-keepalive-expiry",
+                help=(
+                    "The duration in seconds that an idle HTTP connection "
+                    "may be maintained for before being expired from the pool."
+                ),
+                show_default=True,
+            ),
+        ] = 300,
     ):
         """Run the mrok frontend with Gunicorn and Uvicorn workers."""
-        frontend.run(identity_file, host, port, workers)
+        frontend.run(
+            identity_file,
+            host,
+            port,
+            workers,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+            keepalive_expiry=keepalive_expiry,
+        )

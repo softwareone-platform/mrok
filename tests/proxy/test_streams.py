@@ -53,6 +53,7 @@ async def test_aio_network_stream_write_timeout(mocker: MockerFixture):
         await aions.write(b"OK", timeout=0.1)
 
 
+@pytest.mark.asyncio
 async def test_aio_network_stream_close(mocker: MockerFixture):
     m_writer = mocker.AsyncMock()
     m_writer.close = mocker.MagicMock()
@@ -62,6 +63,38 @@ async def test_aio_network_stream_close(mocker: MockerFixture):
     await aions.aclose()
     m_writer.close.assert_called_once()
     m_writer.wait_closed.assert_awaited_once()
+
+
+@pytest.mark.parametrize("readable", [True, False])
+def test_aio_network_stream_extra_info_is_readable(
+    mocker: MockerFixture,
+    readable: bool,
+):
+    m_sock = mocker.MagicMock()
+    m_writer = mocker.MagicMock()
+    m_writer.transport = mocker.MagicMock()
+    m_writer.transport.get_extra_info.return_value = m_sock
+
+    m_is_readable = mocker.patch("mrok.proxy.streams.is_readable", return_value=readable)
+
+    aions = AIONetworkStream(mocker.MagicMock(), m_writer)
+
+    assert aions.get_extra_info("is_readable") is readable
+    m_is_readable.assert_called_once_with(m_sock)
+    m_writer.transport.get_extra_info.assert_called_once_with("socket")
+
+
+def test_aio_network_stream_extra_info_other(
+    mocker: MockerFixture,
+):
+    m_writer = mocker.MagicMock()
+    m_writer.transport = mocker.MagicMock()
+    m_writer.transport.get_extra_info.return_value = "whatever"
+
+    aions = AIONetworkStream(mocker.MagicMock(), m_writer)
+
+    assert aions.get_extra_info("other_extra") == "whatever"
+    m_writer.transport.get_extra_info.assert_called_once_with("other_extra")
 
 
 @pytest.mark.asyncio

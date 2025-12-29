@@ -16,9 +16,9 @@ class FrontendProxyApp(ProxyAppBase):
         self,
         identity_file: str,
         *,
-        max_connections: int = 1000,
-        max_keepalive_connections: int = 10,
-        keepalive_expiry: float = 120.0,
+        max_connections: int | None = 10,
+        max_keepalive_connections: int | None = None,
+        keepalive_expiry: float | None = None,
         retries=0,
     ):
         self._identity_file = identity_file
@@ -32,10 +32,10 @@ class FrontendProxyApp(ProxyAppBase):
 
     def setup_connection_pool(
         self,
-        max_connections: int | None = 1000,
-        max_keepalive_connections: int | None = 100,
-        keepalive_expiry: float | None = 120.0,
-        retries: int = 0,
+        max_connections: int | None,
+        max_keepalive_connections: int | None,
+        keepalive_expiry: float | None,
+        retries: int,
     ) -> AsyncConnectionPool:
         return AsyncConnectionPool(
             max_connections=max_connections,
