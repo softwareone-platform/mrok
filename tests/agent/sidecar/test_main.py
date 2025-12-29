@@ -18,7 +18,13 @@ def test_sidecar_agent(mocker: MockerFixture):
     )
     assert agent.reload is False
     assert agent.get_asgi_app() == mocked_app
-    mocked_app_ctor.assert_called_once_with(":8000")
+    mocked_app_ctor.assert_called_once_with(
+        ":8000",
+        max_connections=10,
+        max_keepalive_connections=None,
+        keepalive_expiry=None,
+        retries=0,
+    )
 
 
 def test_run(mocker: MockerFixture):
@@ -32,6 +38,10 @@ def test_run(mocker: MockerFixture):
         "ziti-identity.json",
         "target-addr",
         workers=10,
+        max_connections=15,
+        max_keepalive_connections=3,
+        keepalive_expiry=100,
+        retries=6,
         publishers_port=4000,
         subscribers_port=5000,
     )
@@ -40,6 +50,10 @@ def test_run(mocker: MockerFixture):
         "ziti-identity.json",
         "target-addr",
         workers=10,
+        max_connections=15,
+        max_keepalive_connections=3,
+        retries=6,
+        keepalive_expiry=100,
         publishers_port=4000,
         subscribers_port=5000,
     )

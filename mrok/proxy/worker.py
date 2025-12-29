@@ -39,26 +39,23 @@ class Worker:
         self._events_enabled = events_enabled
         self._metrics_interval = metrics_interval
         self.events_publisher_port = events_publisher_port
-        self._zmq_ctx = None
-        self._events_publisher = None
-        self._events_publish_task = None
-        self._metrics_collector = None
-
-    async def on_startup(self):
-        logger.info(f"Start events publishing for worker {self._worker_id}")
+        self._metrics_collector = WorkerMetricsCollector(self._worker_id)
         self._zmq_ctx = zmq.asyncio.Context()
         self._events_publisher = self._zmq_ctx.socket(zmq.PUB)
+        self._events_publish_task = None
+
+    async def on_startup(self):
         self._events_publisher.connect(f"tcp://localhost:{self.events_publisher_port}")
-        self._metrics_collector = WorkerMetricsCollector(self._worker_id)
         self._events_publish_task = asyncio.create_task(self.publish_metrics_event())
+        logger.info(f"Events publishing for worker {self._worker_id} started")
 
     async def on_shutdown(self):
-        logger.info(f"Stop events publishing for worker {self._worker_id}")
         self._events_publish_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await self._events_publish_task
         self._events_publisher.close()
         self._zmq_ctx.term()
+        logger.info(f"Events publishing for worker {self._worker_id} stopped")
 
     @asynccontextmanager
     async def lifespan(self, app: ASGIApp):

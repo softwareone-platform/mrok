@@ -26,9 +26,9 @@ class ProxyAppBase(abc.ABC):
     def __init__(
         self,
         *,
-        max_connections: int | None = 1000,
-        max_keepalive_connections: int | None = 10,
-        keepalive_expiry: float | None = 120.0,
+        max_connections: int | None = 10,
+        max_keepalive_connections: int | None = None,
+        keepalive_expiry: float | None = None,
         retries: int = 0,
     ) -> None:
         self._pool = self.setup_connection_pool(
@@ -41,10 +41,10 @@ class ProxyAppBase(abc.ABC):
     @abc.abstractmethod
     def setup_connection_pool(
         self,
-        max_connections: int | None = 1000,
-        max_keepalive_connections: int | None = 10,
-        keepalive_expiry: float | None = 120.0,
-        retries: int = 0,
+        max_connections: int | None,
+        max_keepalive_connections: int | None,
+        keepalive_expiry: float | None,
+        retries: int,
     ) -> AsyncConnectionPool:
         raise NotImplementedError()
 
@@ -78,6 +78,7 @@ class ProxyAppBase(abc.ABC):
                 content=body_stream,
             )
             response = await self._pool.handle_async_request(request)
+            logger.debug(f"connection pool status: {self._pool}")
             response_headers = []
             for k, v in response.headers:
                 if k.lower() not in HOP_BY_HOP_HEADERS:

@@ -49,7 +49,11 @@ def test_run_sidecar(
     result = runner.invoke(
         app,
         shlex.split(
-            f"agent run sidecar ins-1234-5678-0001.json {target_addr} -w 2 -p 4000 -s 5000",
+            f"agent run sidecar ins-1234-5678-0001.json {target_addr} "
+            "-w 2 -p 4000 -s 5000 --max-pool-connections 312 "
+            "--max-pool-keepalive-connections 11 "
+            "--max-pool-keepalive-expiry 3.22 "
+            "--max-pool-connect-retries 2"
         ),
     )
     assert result.exit_code == 0
@@ -57,6 +61,10 @@ def test_run_sidecar(
         "ins-1234-5678-0001.json",
         expected_target_addr,
         workers=2,
+        max_connections=312,
+        max_keepalive_connections=11,
+        keepalive_expiry=3.22,
+        retries=2,
         publishers_port=4000,
         subscribers_port=5000,
     )
