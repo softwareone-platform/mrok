@@ -7,7 +7,7 @@ from httpcore import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
 from openziti.context import ZitiContext
 
 from mrok.proxy.exceptions import InvalidTargetError, TargetUnavailableError
-from mrok.proxy.streams import AIONetworkStream
+from mrok.proxy.stream import AIONetworkStream
 
 
 class AIOZitiNetworkBackend(AsyncNetworkBackend):

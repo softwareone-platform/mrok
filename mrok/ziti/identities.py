@@ -5,8 +5,9 @@ from typing import Any
 import jwt
 
 from mrok.conf import Settings
+from mrok.types.ziti import Tags
 from mrok.ziti import pki
-from mrok.ziti.api import TagsType, ZitiClientAPI, ZitiManagementAPI
+from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.constants import (
     MROK_IDENTITY_TYPE_TAG_NAME,
     MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE,
@@ -29,7 +30,7 @@ async def register_identity(
     client_api: ZitiClientAPI,
     service_external_id: str,
     identity_external_id: str,
-    tags: TagsType | None = None,
+    tags: Tags | None = None,
 ):
     service_name = service_external_id.lower()
     identity_tags = copy.copy(tags or {})
@@ -39,7 +40,7 @@ async def register_identity(
     if not service:
         raise ServiceNotFoundError(f"A service with name `{service_external_id}` does not exists.")
 
-    identity_name = f"{identity_external_id.lower()}.{service_name}"
+    identity_name = identity_external_id.lower()
     service_policy_name = f"{identity_name}:bind"
     self_service_policy_name = f"self.{service_policy_name}"
 
@@ -129,7 +130,7 @@ async def enroll_proxy_identity(
     mgmt_api: ZitiManagementAPI,
     client_api: ZitiClientAPI,
     identity_name: str,
-    tags: TagsType | None = None,
+    tags: Tags | None = None,
 ):
     identity = await mgmt_api.search_identity(identity_name)
     if identity:

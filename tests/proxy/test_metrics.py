@@ -1,7 +1,8 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.proxy.metrics import ProcessMetrics, WorkerMetricsCollector, get_process_metrics
+from mrok.proxy.metrics import MetricsCollector, get_process_metrics
+from mrok.proxy.models import ProcessMetrics
 
 
 @pytest.mark.asyncio
@@ -28,7 +29,7 @@ async def test_worker_metrics_collector(
     mocker.patch(
         "mrok.proxy.metrics.get_process_metrics", return_value=ProcessMetrics(cpu=7.3, mem=44.1)
     )
-    collector = WorkerMetricsCollector("my-worker-id")
+    collector = MetricsCollector("my-worker-id")
     begin = await collector.on_request_start({})
     await collector.on_request_body(23)
     await collector.on_request_body(32)

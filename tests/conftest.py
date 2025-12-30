@@ -14,7 +14,7 @@ from httpx import ASGITransport, AsyncClient
 from pytest_httpx import HTTPXMock
 
 from mrok.conf import Settings, get_settings
-from mrok.proxy.types import ASGIReceive, ASGISend, Message
+from mrok.types.proxy import ASGIReceive, ASGISend, Message
 from tests.types import ReceiveFactory, SendFactory, SettingsFactory
 
 

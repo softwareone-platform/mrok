@@ -68,7 +68,7 @@ def test_start_uvicorn_worker_hook(
         m_app,
         "my-id-file.json",
         events_enabled=False,
-        events_publisher_port=2233,
+        event_publisher_port=2233,
         metrics_interval=24.0,
     )
     m_worker.run.assert_called_once()

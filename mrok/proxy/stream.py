@@ -5,7 +5,7 @@ from typing import Any
 
 from httpcore import AsyncNetworkStream
 
-from mrok.proxy.types import ASGIReceive
+from mrok.types.proxy import ASGIReceive
 
 
 def is_readable(sock):  # pragma: no cover

@@ -9,12 +9,12 @@ from pydantic import (
     computed_field,
 )
 
-from mrok.ziti.api import TagsType
+from mrok.types.ziti import Tags
 
 
 class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
-    tags: TagsType | None = None
+    tags: Tags | None = None
 
 
 class IdSchema(BaseModel):

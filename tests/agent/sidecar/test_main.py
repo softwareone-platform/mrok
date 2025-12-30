@@ -49,6 +49,7 @@ def test_run(mocker: MockerFixture):
     mocked_agent_ctor.assert_called_once_with(
         "ziti-identity.json",
         "target-addr",
+        events_enabled=True,
         workers=10,
         max_connections=15,
         max_keepalive_connections=3,

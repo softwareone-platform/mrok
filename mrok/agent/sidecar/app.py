@@ -5,7 +5,7 @@ from typing import Literal
 from httpcore import AsyncConnectionPool
 
 from mrok.proxy.app import ProxyAppBase
-from mrok.proxy.types import Scope
+from mrok.types.proxy import Scope
 
 logger = logging.getLogger("mrok.agent")
 

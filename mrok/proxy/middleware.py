@@ -3,9 +3,10 @@ import logging
 import time
 
 from mrok.proxy.constants import MAX_REQUEST_BODY_BYTES, MAX_RESPONSE_BODY_BYTES
-from mrok.proxy.datastructures import FixedSizeByteBuffer, HTTPHeaders, HTTPRequest, HTTPResponse
-from mrok.proxy.metrics import WorkerMetricsCollector
-from mrok.proxy.types import (
+from mrok.proxy.metrics import MetricsCollector
+from mrok.proxy.models import FixedSizeByteBuffer, HTTPHeaders, HTTPRequest, HTTPResponse
+from mrok.proxy.utils import must_capture_request, must_capture_response
+from mrok.types.proxy import (
     ASGIApp,
     ASGIReceive,
     ASGISend,
@@ -13,7 +14,6 @@ from mrok.proxy.types import (
     ResponseCompleteCallback,
     Scope,
 )
-from mrok.proxy.utils import must_capture_request, must_capture_response
 
 logger = logging.getLogger("mrok.proxy")
 
@@ -98,7 +98,7 @@ class CaptureMiddleware:
 
 
 class MetricsMiddleware:
-    def __init__(self, app: ASGIApp, metrics: WorkerMetricsCollector):
+    def __init__(self, app: ASGIApp, metrics: MetricsCollector):
         self.app = app
         self.metrics = metrics
 

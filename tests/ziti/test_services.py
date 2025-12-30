@@ -1,7 +1,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.ziti.api import TagsType
+from mrok.types.ziti import Tags
 from mrok.ziti.services import (
     ConfigTypeNotFoundError,
     ProxyIdentityNotFoundError,
@@ -27,7 +27,7 @@ async def test_register_extension(mocker: MockerFixture, settings_factory: Setti
     mocked_api.search_service_policy.return_value = None
     mocked_api.search_service_router_policy.return_value = None
 
-    tags: TagsType = {"tag": "my-tag"}
+    tags: Tags = {"tag": "my-tag"}
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
@@ -101,7 +101,7 @@ async def test_register_extension_config_exists(
     mocked_api.search_service_policy.return_value = None
     mocked_api.search_service_router_policy.return_value = None
 
-    tags: TagsType = {"tag": "my-tag"}
+    tags: Tags = {"tag": "my-tag"}
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
@@ -141,7 +141,7 @@ async def test_register_extension_service_exists(
     mocked_api.search_service_policy.return_value = None
     mocked_api.search_service_router_policy.return_value = None
 
-    tags: TagsType = {"tag": "my-tag"}
+    tags: Tags = {"tag": "my-tag"}
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
@@ -182,7 +182,7 @@ async def test_register_extension_dial_policy_exists(
     mocked_api.search_service_policy.return_value = {"id": "policy_id"}
     mocked_api.search_service_router_policy.return_value = None
 
-    tags: TagsType = {"tag": "my-tag"}
+    tags: Tags = {"tag": "my-tag"}
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
@@ -218,7 +218,7 @@ async def test_register_extension_router_policy_exists(
     mocked_api.search_service_policy.return_value = {"id": "policy_id"}
     mocked_api.search_service_router_policy.return_value = {"id": "policy_id"}
 
-    tags: TagsType = {"tag": "my-tag"}
+    tags: Tags = {"tag": "my-tag"}
 
     with pytest.raises(ServiceAlreadyRegisteredError) as cv:
         await register_service(settings, mocked_api, "EXT-1234", tags)

@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, ParamSpec, Protocol
 
-from mrok.proxy.types import ASGIApp, ASGIReceive, ASGISend, Lifespan, Scope
+from mrok.types.proxy import ASGIApp, ASGIReceive, ASGISend, Lifespan, Scope
 
 P = ParamSpec("P")
 
@@ -57,9 +57,9 @@ class ASGIAppWrapper:
             if self.lifespan is not None:
                 outer_state = await stack.enter_async_context(self.lifespan(app))
                 state.update(outer_state or {})
-            starlette_lifesapn = self.get_starlette_lifespan()
-            if starlette_lifesapn is not None:
-                inner_state = await stack.enter_async_context(starlette_lifesapn(app))
+            starlette_lifespan = self.get_starlette_lifespan()
+            if starlette_lifespan is not None:
+                inner_state = await stack.enter_async_context(starlette_lifespan(app))
                 state.update(inner_state or {})
             yield state
 
