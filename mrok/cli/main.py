@@ -1,5 +1,6 @@
 import inspect
 import sys
+from typing import Annotated
 
 import typer
 from pyfiglet import Figlet
@@ -79,11 +80,23 @@ for name, module in inspect.getmembers(commands):
     elif hasattr(module, "app"):  # pragma: no branch
         app.add_typer(module.app, name=name.replace("_", "-"))
 
+_debug_mode = False
+
 
 @app.callback()
 def main(
     ctx: typer.Context,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            "--debug",
+            help="Run the CLI in debug mode",
+            show_default=True,
+        ),
+    ] = False,
 ):
+    global _debug_mode
+    _debug_mode = debug
     settings = get_settings()
     setup_logging(settings, cli_mode=True)
     ctx.obj = settings
@@ -93,5 +106,8 @@ def run():
     try:
         app()
     except Exception as e:
-        err_console.print(f"[bold red]Error:[/bold red] {e}")
+        if _debug_mode:
+            raise
+        message = str(e) or "Unexpected error. Debug it with --debug"
+        err_console.print(f"[bold red]Error:[/bold red] {message}")
         sys.exit(-1)

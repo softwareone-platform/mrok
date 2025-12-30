@@ -1,0 +1,261 @@
+
+volumes:
+  ziti-controller:
+    driver: local
+  ziti-router:
+    driver: local
+  coredns-config:
+    driver: local
+  mrok:
+    driver: local
+
+networks:
+  mrok:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${MROK_NETWORK_POOL:-172.99.0.0/16}
+
+services:
+  coredns-init:
+    image: busybox
+    environment:
+      MROK_DOMAIN: ${MROK_DOMAIN:-mrok.test}
+      MROK_PROXY_DOMAIN: ${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      MROK_FRONTEND_IP: ${MROK_FRONTEND_IP:-172.99.0.10}
+      ZITI_CTRL_FQDN: ${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}
+      ZITI_CTRL_IP: ${ZITI_CTRL_IP:-172.99.0.20}
+      ZITI_ROUTER_FQDN: ${ZITI_ROUTER_SUBDOMAIN:-ziti-router}.${MROK_DOMAIN:-mrok.test}
+      ZITI_ROUTER_IP: ${ZITI_ROUTER_IP:-172.99.0.21}
+      TTL: 60
+    command: >
+      sh -c '
+      printf "%s\n" "
+      . {
+          errors
+          log
+          hosts {
+              $$ZITI_CTRL_IP $$ZITI_CTRL_FQDN
+              $$ZITI_ROUTER_IP $$ZITI_ROUTER_FQDN
+              fallthrough
+          }
+          template IN A {
+              match .*\.$$MROK_PROXY_DOMAIN
+              answer \"{{ .Name }} $$TTL IN A $$MROK_FRONTEND_IP\"
+              fallthrough
+          }
+          template IN AAAA {
+              match .*\.$$MROK_PROXY_DOMAIN
+              fallthrough
+          }
+          forward . 8.8.8.8
+      }
+      " > /config/Corefile
+      '
+    volumes:
+      - coredns-config:/config
+  coredns:
+    image: coredns/coredns:latest
+    command: -conf /config/Corefile
+    depends_on:
+      - coredns-init
+    volumes:
+      - coredns-config:/config:ro
+    networks:
+      mrok:
+        ipv4_address: ${MROK_DNS_IP:-172.99.0.2}
+
+  chown-controller:
+    image: busybox
+    command: chown -R ${ZIGGY_UID:-2171} /ziti-controller
+    volumes:
+      - ziti-controller:/ziti-controller
+
+  ziti-controller:
+    image: ${ZITI_CONTROLLER_IMAGE:-openziti/ziti-controller}
+    depends_on:
+      chown-controller:
+        condition: service_completed_successfully
+    user: ${ZIGGY_UID:-2171}
+    volumes:
+      - ziti-controller:/ziti-controller
+    networks:
+      mrok:
+        ipv4_address: ${ZITI_CTRL_IP:-172.99.0.20}
+    dns:
+      - ${MROK_DNS_IP:-172.99.0.2}
+    environment:
+      ZITI_CTRL_ADVERTISED_ADDRESS: ${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}
+      ZITI_CTRL_ADVERTISED_PORT: ${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      ZITI_USER: ${ZITI_USER:-admin}
+      ZITI_PWD: ${ZITI_PWD:-}
+    command: run config.yml
+    ports:
+      - ${ZITI_INTERFACE:-0.0.0.0}:${ZITI_CTRL_ADVERTISED_PORT:-1280}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+    expose:
+      - ${ZITI_CTRL_ADVERTISED_PORT:-1280}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - ziti
+        - agent
+        - stats
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  ziti-router-enroll-jwt:
+    image: openziti/ziti-cli:latest
+    depends_on:
+      ziti-controller:
+        condition: service_healthy
+    volumes:
+      - ziti-router:/ziti-router
+    environment:
+      ZITI_USER: ${ZITI_USER:-admin}
+      ZITI_PWD: ${ZITI_PWD:-}
+      CTRL_ADDR: ${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      ZITI_ENROLL_TOKEN: ${ZITI_ENROLL_TOKEN:-/ziti-router/ziti-router-public.jwt}
+      ROUTER_NAME: ${ZITI_ROUTER_NAME:-ziti-router-public}
+    entrypoint: /bin/bash -c
+    command: >
+      "ziti edge login $${CTRL_ADDR} -u $${ZITI_USER} -p $${ZITI_PWD} -y &&
+      if ziti edge list edge-routers | grep -q $${ROUTER_NAME}; then
+        echo 'Router already exists';
+      else
+        ziti edge create edge-router $${ROUTER_NAME} --jwt-output-file $${ZITI_ENROLL_TOKEN};
+        echo 'JWT Created';
+      fi"
+    networks:
+      mrok:
+    dns:
+      - ${MROK_DNS_IP:-172.99.0.2}
+
+  chown-router:
+    image: busybox
+    command: chown -R ${ZIGGY_UID:-2171} /ziti-router
+    volumes:
+      - ziti-router:/ziti-router
+
+  ziti-router:
+    image: ${ZITI_ROUTER_IMAGE:-openziti/ziti-router}
+    depends_on:
+      chown-router:
+        condition: service_completed_successfully
+      ziti-controller:
+        condition: service_healthy
+
+    user: ${ZIGGY_UID:-2171}
+    volumes:
+      - ziti-router:/ziti-router
+    environment:
+      ZITI_CTRL_ADVERTISED_ADDRESS: ${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}
+      ZITI_CTRL_ADVERTISED_PORT: ${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      ZITI_ENROLL_TOKEN: ${ZITI_ENROLL_TOKEN:-/ziti-router/ziti-router-public.jwt}
+      ZITI_ROUTER_ADVERTISED_ADDRESS: ${ZITI_ROUTER_SUBDOMAIN:-ziti-router}.${MROK_DOMAIN:-mrok.test}
+      ZITI_ROUTER_PORT: ${ZITI_ROUTER_PORT:-3022}
+      ZITI_ROUTER_MODE: ${ZITI_ROUTER_MODE:-host}
+    command: run config.yml
+    ports:
+      - ${ZITI_INTERFACE:-0.0.0.0}:${ZITI_ROUTER_PORT:-3022}:${ZITI_ROUTER_PORT:-3022}
+    expose:
+      - ${ZITI_ROUTER_PORT:-3022}
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        - CMD
+        - ziti
+        - agent
+        - stats
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    networks:
+      mrok:
+        ipv4_address: ${ZITI_ROUTER_IP:-172.99.0.21}
+    dns:
+      - ${MROK_DNS_IP:-172.99.0.2}
+
+  mrok-controller:
+    build:
+      context: .
+      dockerfile: prod.Dockerfile
+    depends_on:
+      ziti-controller:
+        condition: service_healthy
+    restart: unless-stopped
+    command: "mrok controller run -w ${MROK_CTRL_WORKERS:-4} -h ${MROK_INTERFACE:-0.0.0.0} -p ${MROK_CTRL_PORT:-8000}"
+    ports:
+      - ${MROK_INTERFACE:-0.0.0.0}:${MROK_CTRL_PORT:-8000}:${MROK_CTRL_PORT:-8000}
+    expose:
+      - ${MROK_CTRL_PORT:-8000}
+    working_dir: /app
+    environment:
+      - MROK_ZITI__API__CLIENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      - MROK_ZITI__API__MANAGEMENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      - MROK_ZITI__AUTH__USERNAME=${ZITI_USER:-admin}
+      - MROK_ZITI__AUTH__PASSWORD=${ZITI_PWD}
+      - MROK_PROXY__DOMAIN=${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      - MROK_LOGGING__RICH=false
+      - MROK_LOGGING__DEBUG=false
+    networks:
+      mrok:
+    dns:
+      - ${MROK_DNS_IP:-172.99.0.2}
+
+  mrok-frontend:
+    build:
+      context: .
+      dockerfile: prod.Dockerfile
+    depends_on:
+      ziti-controller:
+        condition: service_healthy
+    volumes:
+      - mrok:/app/identities
+    command: >
+      bash -c "
+        mrok admin bootstrap /app/identities/public.json
+        mrok frontend run -w ${MROK_FRONTEND_WORKERS:-4} -h ${MROK_INTERFACE:-0.0.0.0} -P ${MROK_FRONTEND_PORT:-8080} --max-pool-keepalive-expiry 15 /app/identities/public.json
+      "
+    ports:
+      - ${MROK_INTERFACE:-0.0.0.0}:${MROK_FRONTEND_PORT:-8080}:${MROK_FRONTEND_PORT:-8080}
+    expose:
+      - ${MROK_FRONTEND_PORT:-8080}
+    working_dir: /app
+    environment:
+      - MROK_ZITI__API__CLIENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      - MROK_ZITI__API__MANAGEMENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      - MROK_ZITI__AUTH__USERNAME=${ZITI_USER:-admin}
+      - MROK_ZITI__AUTH__PASSWORD=${ZITI_PWD}
+      - MROK_PROXY__DOMAIN=${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      - MROK_LOGGING__RICH=false
+      - MROK_LOGGING__DEBUG=false
+    networks:
+      mrok:
+        ipv4_address: ${MROK_PROXY_IP:-172.99.0.10}
+    dns:
+      - ${MROK_DNS_IP:-172.99.0.2}
+
+  devcontainer:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      - MROK_ZITI__API__CLIENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      - MROK_ZITI__API__MANAGEMENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
+      - MROK_ZITI__AUTH__USERNAME=${ZITI_USER:-admin}
+      - MROK_ZITI__AUTH__PASSWORD=${ZITI_PWD}
+      - MROK_LOGGING__RICH=false
+      - MROK_PROXY__DOMAIN=${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+    command: sleep infinity
+    networks:
+      mrok:
+        ipv4_address: ${MROK_DEVCONTAINER_IP:-172.99.0.100}
+    dns:
+      - ${MROK_DNS_IP:-172.99.0.2}

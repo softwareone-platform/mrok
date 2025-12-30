@@ -109,7 +109,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.bandit]
 targets = ["mrok"]
-exclude_dirs = ["tests", ".venv", "ziti-sdk-py"]
+exclude_dirs = ["tests", ".venv", "ziti-sdk-py", "loadtest"]
 
 [tool.pytest.ini_options]
 testpaths = "tests/"

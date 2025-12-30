@@ -36,11 +36,6 @@ async def bootstrap_identity(
         logger.info("Deleted existing identity")
         existing_identity = None
 
-    if forced and config_type:
-        await mgmt_api.delete_config_type(config_type["id"])
-        logger.info(f"Deleted existing config type '{config_type_name}' ({config_type['id']})")
-        config_type = None
-
     if existing_identity:
         frontend_id = existing_identity["id"]
         logger.info(f"Identity '{identity_name}' ({frontend_id}) is already enrolled")
