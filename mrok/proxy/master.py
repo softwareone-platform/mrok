@@ -14,8 +14,8 @@ from watchfiles.run import CombinedProcess, start_process
 
 from mrok.conf import get_settings
 from mrok.logging import setup_logging
-from mrok.proxy.types import ASGIApp
 from mrok.proxy.worker import Worker
+from mrok.types.proxy import ASGIApp
 
 logger = logging.getLogger("mrok.agent")
 
@@ -67,7 +67,7 @@ def start_uvicorn_worker(
         app,
         identity_file,
         events_enabled=events_enabled,
-        events_publisher_port=events_pub_port,
+        event_publisher_port=events_pub_port,
         metrics_interval=metrics_interval,
     )
     worker.run()

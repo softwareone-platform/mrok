@@ -6,7 +6,7 @@ from mrok.conf import get_settings
 from mrok.proxy.app import ProxyAppBase
 from mrok.proxy.backend import AIOZitiNetworkBackend
 from mrok.proxy.exceptions import InvalidTargetError
-from mrok.proxy.types import Scope
+from mrok.types.proxy import Scope
 
 RE_SUBDOMAIN = re.compile(r"(?i)^(?:EXT-\d{4}-\d{4}|INS-\d{4}-\d{4}-\d{4})$")
 

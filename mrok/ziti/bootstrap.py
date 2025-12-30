@@ -1,7 +1,8 @@
 import logging
 from typing import Any
 
-from mrok.ziti.api import TagsType, ZitiClientAPI, ZitiManagementAPI
+from mrok.types.ziti import Tags
+from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.identities import enroll_proxy_identity
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ async def bootstrap_identity(
     identity_name: str,
     mode: str,
     forced: bool,
-    tags: TagsType | None,
+    tags: Tags | None,
 ) -> tuple[str, dict[str, Any] | None]:
     logger.info(f"Bootstrapping '{identity_name}' identity...")
 

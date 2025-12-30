@@ -2,10 +2,10 @@ from datetime import datetime
 
 import typer
 
-from mrok.ziti.api import TagsType
+from mrok.types.ziti import Tags
 
 
-def parse_tags(pairs: list[str] | None) -> TagsType | None:
+def parse_tags(pairs: list[str] | None) -> Tags | None:
     if not pairs:
         return None
 

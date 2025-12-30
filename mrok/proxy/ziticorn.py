@@ -6,17 +6,40 @@ from pathlib import Path
 from typing import Any
 
 import openziti
-from uvicorn import config
+from uvicorn import config, server
+from uvicorn.lifespan.on import LifespanOn
+from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol as UvHttpToolsProtocol
 
-from mrok.proxy.protocol import MrokHttpToolsProtocol
-from mrok.proxy.types import ASGIApp
+from mrok.types.proxy import ASGIApp
 
 logger = logging.getLogger("mrok.proxy")
 
-config.LIFESPAN["auto"] = "mrok.proxy.lifespan:MrokLifespan"
+config.LIFESPAN["auto"] = "mrok.proxy.ziticorn:Lifespan"
 
 
-class MrokBackendConfig(config.Config):
+class Lifespan(LifespanOn):
+    def __init__(self, lf_config: config.Config) -> None:
+        super().__init__(lf_config)
+        self.logger = logging.getLogger("mrok.proxy")
+
+
+class HttpToolsProtocol(UvHttpToolsProtocol):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.logger = logging.getLogger("mrok.proxy")
+        self.access_logger = logging.getLogger("mrok.access")
+        self.access_log = self.access_logger.hasHandlers()
+
+
+class Server(server.Server):
+    async def serve(self, sockets: list[socket.socket] | None = None) -> None:
+        if not sockets:
+            sockets = [self.config.bind_socket()]
+        with self.capture_signals():
+            await self._serve(sockets)
+
+
+class BackendConfig(config.Config):
     def __init__(
         self,
         app: ASGIApp | Callable[..., Any] | str,
@@ -32,7 +55,7 @@ class MrokBackendConfig(config.Config):
         super().__init__(
             app,
             loop="asyncio",
-            http=MrokHttpToolsProtocol,
+            http=HttpToolsProtocol,
             backlog=backlog,
         )
 

@@ -4,7 +4,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from mrok.proxy.asgi import ASGIAppWrapper
-from mrok.proxy.types import Message
+from mrok.types.proxy import Message
 from tests.types import ReceiveFactory, SendFactory
 
 

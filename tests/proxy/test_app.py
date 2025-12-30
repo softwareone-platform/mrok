@@ -9,7 +9,7 @@ from pytest_mock import MockerFixture
 
 from mrok.proxy.app import HOP_BY_HOP_HEADERS, ProxyAppBase
 from mrok.proxy.exceptions import ProxyError
-from mrok.proxy.types import ASGIReceive, ASGISend, Message
+from mrok.types.proxy import ASGIReceive, ASGISend, Message
 from tests.types import ReceiveFactory, SendFactory
 
 

@@ -11,11 +11,10 @@ from typing import Any, Literal
 import httpx
 
 from mrok.conf import Settings
+from mrok.types.ziti import Tags
 from mrok.ziti.constants import MROK_VERSION_TAG, MROK_VERSION_TAG_NAME
 
 logger = logging.getLogger(__name__)
-
-TagsType = dict[str, str | bool | None]
 
 
 class ZitiAPIError(Exception):
@@ -70,7 +69,7 @@ class BaseZitiAPI(ABC):
             ),
         )
 
-    async def create(self, endpoint: str, payload: dict[str, Any], tags: TagsType | None) -> str:
+    async def create(self, endpoint: str, payload: dict[str, Any], tags: Tags | None) -> str:
         payload["tags"] = self._merge_tags(tags)
         response: httpx.Response = await self.httpx_client.post(
             endpoint,
@@ -156,8 +155,8 @@ class BaseZitiAPI(ABC):
     ) -> None:
         return await self.httpx_client.__aexit__(exc_type, exc_val, exc_tb)
 
-    def _merge_tags(self, tags: TagsType | None) -> TagsType:
-        prepared_tags: TagsType = tags or {}
+    def _merge_tags(self, tags: Tags | None) -> Tags:
+        prepared_tags: Tags = tags or {}
         prepared_tags.update(MROK_VERSION_TAG)
         return prepared_tags
 
@@ -281,9 +280,7 @@ class ZitiManagementAPI(BaseZitiAPI):
     async def search_config(self, id_or_name) -> dict[str, Any] | None:
         return await self.search_by_id_or_name("/configs", id_or_name)
 
-    async def create_config(
-        self, name: str, config_type_id: str, tags: TagsType | None = None
-    ) -> str:
+    async def create_config(self, name: str, config_type_id: str, tags: Tags | None = None) -> str:
         return await self.create(
             "/configs",
             {
@@ -302,7 +299,7 @@ class ZitiManagementAPI(BaseZitiAPI):
     async def delete_config(self, config_id: str) -> None:
         return await self.delete("/configs", config_id)
 
-    async def create_config_type(self, name: str, tags: TagsType | None = None) -> str:
+    async def create_config_type(self, name: str, tags: Tags | None = None) -> str:
         return await self.create(
             "/config-types",
             {
@@ -316,7 +313,7 @@ class ZitiManagementAPI(BaseZitiAPI):
         self,
         name: str,
         config_id: str,
-        tags: TagsType | None = None,
+        tags: Tags | None = None,
     ) -> str:
         return await self.create(
             "/services",
@@ -332,7 +329,7 @@ class ZitiManagementAPI(BaseZitiAPI):
         self,
         name: str,
         service_id: str,
-        tags: TagsType | None = None,
+        tags: Tags | None = None,
     ) -> str:
         return await self.create(
             "/service-edge-router-policies",
@@ -351,7 +348,7 @@ class ZitiManagementAPI(BaseZitiAPI):
         self,
         name: str,
         identity_id: str,
-        tags: TagsType | None = None,
+        tags: Tags | None = None,
     ) -> str:
         return await self.create(
             "/edge-router-policies",
@@ -385,10 +382,10 @@ class ZitiManagementAPI(BaseZitiAPI):
     async def delete_service(self, service_id: str) -> None:
         return await self.delete("/services", service_id)
 
-    async def create_user_identity(self, name: str, tags: TagsType | None = None) -> str:
+    async def create_user_identity(self, name: str, tags: Tags | None = None) -> str:
         return await self._create_identity(name, "User", tags=tags)
 
-    async def create_device_identity(self, name: str, tags: TagsType | None = None) -> str:
+    async def create_device_identity(self, name: str, tags: Tags | None = None) -> str:
         return await self._create_identity(name, "Device", tags=tags)
 
     async def search_identity(self, id_or_name: str) -> dict[str, Any] | None:
@@ -412,12 +409,12 @@ class ZitiManagementAPI(BaseZitiAPI):
         return response.text
 
     async def create_dial_service_policy(
-        self, name: str, service_id: str, identity_id: str, tags: TagsType | None = None
+        self, name: str, service_id: str, identity_id: str, tags: Tags | None = None
     ) -> str:
         return await self._create_service_policy("Dial", name, service_id, identity_id, tags)
 
     async def create_bind_service_policy(
-        self, name: str, service_id: str, identity_id: str, tags: TagsType | None = None
+        self, name: str, service_id: str, identity_id: str, tags: Tags | None = None
     ) -> str:
         return await self._create_service_policy("Bind", name, service_id, identity_id, tags)
 
@@ -433,7 +430,7 @@ class ZitiManagementAPI(BaseZitiAPI):
         name: str,
         service_id: str,
         identity_id: str,
-        tags: TagsType | None = None,
+        tags: Tags | None = None,
     ) -> str:
         return await self.create(
             "/service-policies",
@@ -451,7 +448,7 @@ class ZitiManagementAPI(BaseZitiAPI):
         self,
         name: str,
         type: Literal["User", "Device", "Default"],
-        tags: TagsType | None = None,
+        tags: Tags | None = None,
     ) -> str:
         return await self.create(
             "/identities",

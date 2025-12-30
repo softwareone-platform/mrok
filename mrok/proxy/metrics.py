@@ -8,7 +8,7 @@ import time
 import psutil
 from hdrh.histogram import HdrHistogram
 
-from mrok.proxy.datastructures import (
+from mrok.proxy.models import (
     DataTransferMetrics,
     ProcessMetrics,
     RequestsMetrics,
@@ -49,7 +49,7 @@ async def get_process_metrics(interval: float = 0.1) -> ProcessMetrics:
     return await asyncio.to_thread(_collect_process_usage, interval)
 
 
-class WorkerMetricsCollector:
+class MetricsCollector:
     def __init__(self, worker_id: str, lowest=1, highest=60000, sigfigs=3):
         self.worker_id = worker_id
         self.total_requests = 0

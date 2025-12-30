@@ -5,8 +5,8 @@ import pytest
 from pytest_httpx import HTTPXMock
 from pytest_mock import MockerFixture
 
+from mrok.types.ziti import Tags
 from mrok.ziti.api import (
-    TagsType,
     ZitiAuthError,
     ZitiBadRequestError,
     ZitiClientAPI,
@@ -22,7 +22,7 @@ from tests.conftest import SettingsFactory
 async def test_create(
     settings_factory: SettingsFactory,
     httpx_mock: HTTPXMock,
-    tags: TagsType | None,
+    tags: Tags | None,
 ):
     settings = settings_factory()
     expected_body = {

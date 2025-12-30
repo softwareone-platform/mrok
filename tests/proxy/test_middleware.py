@@ -3,9 +3,9 @@ import asyncio
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.proxy.datastructures import HTTPResponse
-from mrok.proxy.middlewares import CaptureMiddleware, MetricsMiddleware
-from mrok.proxy.types import Message
+from mrok.proxy.middleware import CaptureMiddleware, MetricsMiddleware
+from mrok.proxy.models import HTTPResponse
+from mrok.types.proxy import Message
 from tests.types import ReceiveFactory, SendFactory
 
 
@@ -69,7 +69,7 @@ async def test_capture(
     receive_factory: ReceiveFactory,
     send_factory: SendFactory,
 ):
-    mocker.patch("mrok.proxy.middlewares.time.time", side_effect=[7, 25])
+    mocker.patch("mrok.proxy.middleware.time.time", side_effect=[7, 25])
 
     class MockApp:
         async def __call__(self, scope, receive, send):

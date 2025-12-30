@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import core_schema
 
 
-class ZitiId(BaseModel):
+class X509Credentials(BaseModel):
     key: str
     cert: str
     ca: str
@@ -21,7 +21,7 @@ class ZitiId(BaseModel):
         return value
 
 
-class ZitiMrokMeta(BaseModel):
+class ServiceMetadata(BaseModel):
     model_config = ConfigDict(extra="ignore")
     identity: str
     extension: str
@@ -30,21 +30,21 @@ class ZitiMrokMeta(BaseModel):
     tags: dict[str, str | bool | None] | None = None
 
 
-class ZitiIdentity(BaseModel):
+class Identity(BaseModel):
     model_config = ConfigDict(extra="ignore")
     zt_api: str = Field(validation_alias="ztAPI")
-    id: ZitiId
+    id: X509Credentials
     zt_apis: str | None = Field(default=None, validation_alias="ztAPIs")
     config_types: str | None = Field(default=None, validation_alias="configTypes")
     enable_ha: bool = Field(default=False, validation_alias="enableHa")
-    mrok: ZitiMrokMeta | None = None
+    mrok: ServiceMetadata | None = None
 
     @staticmethod
-    def load_from_file(path: str | Path) -> ZitiIdentity:
+    def load_from_file(path: str | Path) -> Identity:
         path = Path(path)
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
-        return ZitiIdentity.model_validate(data)
+        return Identity.model_validate(data)
 
 
 class FixedSizeByteBuffer:
@@ -183,7 +183,7 @@ class WorkerMetrics(BaseModel):
 
 class Status(BaseModel):
     type: Literal["status"] = "status"
-    meta: ZitiMrokMeta
+    meta: ServiceMetadata
     metrics: WorkerMetrics
 
 

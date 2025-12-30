@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Mapping, MutableMapp
 from contextlib import AbstractAsyncContextManager
 from typing import Any, Never
 
-from mrok.proxy.datastructures import HTTPResponse
+from mrok.proxy.models import HTTPResponse
 
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]

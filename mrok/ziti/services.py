@@ -2,7 +2,8 @@ import logging
 from typing import Any
 
 from mrok.conf import Settings
-from mrok.ziti.api import TagsType, ZitiManagementAPI
+from mrok.types.ziti import Tags
+from mrok.ziti.api import ZitiManagementAPI
 from mrok.ziti.errors import (
     ConfigTypeNotFoundError,
     ProxyIdentityNotFoundError,
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def register_service(
-    settings: Settings, mgmt_api: ZitiManagementAPI, external_id: str, tags: TagsType | None
+    settings: Settings, mgmt_api: ZitiManagementAPI, external_id: str, tags: Tags | None
 ) -> dict[str, Any]:
     service_name = external_id.lower()
     registered = False

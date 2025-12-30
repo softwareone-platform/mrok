@@ -4,8 +4,8 @@ import logging
 from httpcore import AsyncConnectionPool, Request
 
 from mrok.proxy.exceptions import ProxyError
-from mrok.proxy.streams import ASGIRequestBodyStream
-from mrok.proxy.types import ASGIReceive, ASGISend, Scope
+from mrok.proxy.stream import ASGIRequestBodyStream
+from mrok.types.proxy import ASGIReceive, ASGISend, Scope
 
 logger = logging.getLogger("mrok.proxy")
 

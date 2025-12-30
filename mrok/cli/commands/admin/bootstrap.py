@@ -8,14 +8,15 @@ import typer
 
 from mrok.cli.commands.admin.utils import parse_tags
 from mrok.conf import Settings
-from mrok.ziti.api import TagsType, ZitiClientAPI, ZitiManagementAPI
+from mrok.types.ziti import Tags
+from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.bootstrap import bootstrap_identity
 
 logger = logging.getLogger(__name__)
 
 
 async def bootstrap(
-    settings: Settings, forced: bool, tags: TagsType | None
+    settings: Settings, forced: bool, tags: Tags | None
 ) -> tuple[str, dict[str, Any] | None]:
     async with ZitiManagementAPI(settings) as mgmt_api, ZitiClientAPI(settings) as client_api:
         return await bootstrap_identity(

@@ -60,6 +60,7 @@ def test_run_sidecar(
     mocked_sidecar.assert_called_once_with(
         "ins-1234-5678-0001.json",
         expected_target_addr,
+        events_enabled=True,
         workers=2,
         max_connections=312,
         max_keepalive_connections=11,

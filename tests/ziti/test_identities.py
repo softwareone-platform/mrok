@@ -69,13 +69,11 @@ async def test_register_instance(mocker: MockerFixture, settings_factory: Settin
     }
 
     assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
-    assert (
-        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
-    )
+    assert mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001"
 
-    mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
+    mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001")
     mocked_mgmt_api.create_user_identity.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         tags={
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
             "account": "ACC-1234",
@@ -105,29 +103,29 @@ async def test_register_instance(mocker: MockerFixture, settings_factory: Settin
         "account": "ACC-1234",
     }
     assert identity_json["mrok"]["domain"] == settings.proxy.domain
-    assert identity_json["mrok"]["identity"] == "ins-1234-5678-0001.ext-1234-5678"
+    assert identity_json["mrok"]["identity"] == "ins-1234-5678-0001"
     assert identity_json["mrok"]["extension"] == "EXT-1234-5678"
     assert identity_json["mrok"]["instance"] == "INS-1234-5678-0001"
 
     mocked_register_service.assert_called_once_with(
         settings,
         mocked_mgmt_api,
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         {"account": "ACC-1234"},
     )
 
     assert mocked_mgmt_api.create_bind_service_policy.mock_calls[0].args == (
-        "ins-1234-5678-0001.ext-1234-5678:bind",
+        "ins-1234-5678-0001:bind",
         "svc1",
         "identity-id",
     )
     assert mocked_mgmt_api.create_bind_service_policy.mock_calls[1].args == (
-        "self.ins-1234-5678-0001.ext-1234-5678:bind",
+        "self.ins-1234-5678-0001:bind",
         "self-service-id",
         "identity-id",
     )
     mocked_mgmt_api.create_router_policy.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         "identity-id",
     )
 
@@ -197,12 +195,10 @@ async def test_register_instance_identity_exists(
     )
 
     assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
-    assert (
-        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
-    )
-    mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001"
+    mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001")
     mocked_mgmt_api.create_user_identity.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         tags={
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
             "account": "ACC-1234",
@@ -230,31 +226,29 @@ async def test_register_instance_identity_exists(
     mocked_register_service.assert_not_awaited()
 
     assert mocked_mgmt_api.create_bind_service_policy.mock_calls[0].args == (
-        "ins-1234-5678-0001.ext-1234-5678:bind",
+        "ins-1234-5678-0001:bind",
         "svc1",
         "identity-id",
     )
     assert mocked_mgmt_api.create_bind_service_policy.mock_calls[1].args == (
-        "self.ins-1234-5678-0001.ext-1234-5678:bind",
+        "self.ins-1234-5678-0001:bind",
         "self-service-id",
         "identity-id",
     )
     mocked_mgmt_api.create_router_policy.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         "identity-id",
     )
     assert mocked_mgmt_api.search_service_policy.mock_calls[0].args[0] == (
-        "ins-1234-5678-0001.ext-1234-5678:bind"
+        "ins-1234-5678-0001:bind"
     )
     assert mocked_mgmt_api.search_service_policy.mock_calls[1].args[0] == (
-        "self.ins-1234-5678-0001.ext-1234-5678:bind"
+        "self.ins-1234-5678-0001:bind"
     )
     assert mocked_mgmt_api.delete_service_policy.mock_calls[0].args[0] == "service-policy-id"
     assert mocked_mgmt_api.delete_service_policy.mock_calls[1].args[0] == "self-service-policy-id"
 
-    mocked_mgmt_api.search_router_policy.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678"
-    )
+    mocked_mgmt_api.search_router_policy.assert_awaited_once_with("ins-1234-5678-0001")
     mocked_mgmt_api.delete_router_policy.assert_awaited_once_with("router-policy-id")
     mocked_mgmt_api.delete_identity.assert_awaited_once_with("identity-id")
 
@@ -298,12 +292,10 @@ async def test_register_instance_identity_exists_service_router_doesnt(
     )
 
     assert mocked_mgmt_api.search_service.mock_calls[0].args[0] == "ext-1234-5678"
-    assert (
-        mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001.ext-1234-5678"
-    )
-    mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001.ext-1234-5678")
+    assert mocked_mgmt_api.search_service.mock_calls[1].args[0] == "ins-1234-5678-0001"
+    mocked_mgmt_api.search_identity.assert_awaited_once_with("ins-1234-5678-0001")
     mocked_mgmt_api.create_user_identity.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         tags={
             MROK_SERVICE_TAG_NAME: "ext-1234-5678",
             "account": "ACC-1234",
@@ -331,34 +323,32 @@ async def test_register_instance_identity_exists_service_router_doesnt(
     mocked_register_service.assert_called_once_with(
         settings,
         mocked_mgmt_api,
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         {"account": "ACC-1234"},
     )
 
     assert mocked_mgmt_api.create_bind_service_policy.mock_calls[0].args == (
-        "ins-1234-5678-0001.ext-1234-5678:bind",
+        "ins-1234-5678-0001:bind",
         "svc1",
         "identity-id",
     )
     assert mocked_mgmt_api.create_bind_service_policy.mock_calls[1].args == (
-        "self.ins-1234-5678-0001.ext-1234-5678:bind",
+        "self.ins-1234-5678-0001:bind",
         "self-service-id",
         "identity-id",
     )
     mocked_mgmt_api.create_router_policy.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678",
+        "ins-1234-5678-0001",
         "identity-id",
     )
     assert mocked_mgmt_api.search_service_policy.mock_calls[0].args[0] == (
-        "ins-1234-5678-0001.ext-1234-5678:bind"
+        "ins-1234-5678-0001:bind"
     )
     assert mocked_mgmt_api.search_service_policy.mock_calls[1].args[0] == (
-        "self.ins-1234-5678-0001.ext-1234-5678:bind"
+        "self.ins-1234-5678-0001:bind"
     )
     mocked_mgmt_api.delete_service_policy.assert_not_awaited()
-    mocked_mgmt_api.search_router_policy.assert_awaited_once_with(
-        "ins-1234-5678-0001.ext-1234-5678"
-    )
+    mocked_mgmt_api.search_router_policy.assert_awaited_once_with("ins-1234-5678-0001")
     mocked_mgmt_api.delete_router_policy.assert_not_awaited()
     mocked_mgmt_api.delete_identity.assert_awaited_once_with("identity-id")
 

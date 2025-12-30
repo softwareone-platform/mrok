@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from pytest_mock import MockerFixture
 
-from mrok.proxy.streams import AIONetworkStream, ASGIRequestBodyStream
+from mrok.proxy.stream import AIONetworkStream, ASGIRequestBodyStream
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ def test_aio_network_stream_extra_info_is_readable(
     m_writer.transport = mocker.MagicMock()
     m_writer.transport.get_extra_info.return_value = m_sock
 
-    m_is_readable = mocker.patch("mrok.proxy.streams.is_readable", return_value=readable)
+    m_is_readable = mocker.patch("mrok.proxy.stream.is_readable", return_value=readable)
 
     aions = AIONetworkStream(mocker.MagicMock(), m_writer)
 

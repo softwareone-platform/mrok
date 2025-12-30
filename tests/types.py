@@ -6,7 +6,7 @@ from textual.app import App
 from textual.pilot import Pilot
 
 from mrok.conf import Settings
-from mrok.proxy.types import ASGIReceive, ASGISend, Message
+from mrok.types.proxy import ASGIReceive, ASGISend, Message
 
 
 class SnapCompare(Protocol):

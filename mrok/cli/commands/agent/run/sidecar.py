@@ -98,6 +98,14 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = 50001,
+        no_events: Annotated[
+            bool,
+            typer.Option(
+                "--no-events",
+                help="Disable events. Default: False",
+                show_default=True,
+            ),
+        ] = False,
     ):
         """Run a Sidecar Proxy to expose a web application through OpenZiti."""
         if ":" in str(target):
@@ -110,6 +118,7 @@ def register(app: typer.Typer) -> None:
             str(identity_file),
             target_addr,
             workers=workers,
+            events_enabled=not no_events,
             max_connections=max_connections,
             max_keepalive_connections=max_keepalive_connections,
             keepalive_expiry=keepalive_expiry,
