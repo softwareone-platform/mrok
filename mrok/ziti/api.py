@@ -62,7 +62,7 @@ class BaseZitiAPI(ABC):
             auth=self.auth,
             verify=self.settings.ziti.ssl_verify,
             timeout=httpx.Timeout(
-                connect=0.25,
+                connect=self.settings.ziti.connect_timeout,
                 read=self.settings.ziti.read_timeout,
                 write=2.0,
                 pool=5.0,

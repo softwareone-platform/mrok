@@ -49,9 +49,7 @@ class BackendConfig(config.Config):
     ):
         self.identity_file = identity_file
         self.ziti_load_timeout_ms = ziti_load_timeout_ms
-        self.service_name, self.identity_name, self.instance_id = self.get_identity_info(
-            identity_file
-        )
+        self.service_name, self.instance_id = self.get_identity_info(identity_file)
         super().__init__(
             app,
             loop="asyncio",
@@ -63,9 +61,9 @@ class BackendConfig(config.Config):
         with open(identity_file) as f:
             identity_data = json.load(f)
             try:
-                identity_name = identity_data["mrok"]["identity"]
-                instance_id, service_name = identity_name.split(".", 1)
-                return service_name, identity_name, instance_id
+                instance_id = identity_data["mrok"]["instance"]
+                service_name = identity_data["mrok"]["extension"]
+                return service_name, instance_id
             except KeyError:
                 raise ValueError("Invalid identity file: identity file is not mrok compatible.")
 

@@ -7,6 +7,7 @@ ziti:
   api:
     client: https://192.168.64.233:8444
     management: https://192.168.64.233:8443
+  connect_timeout: 0.25
   read_timeout: 30
   ssl_verify: False
   auth:

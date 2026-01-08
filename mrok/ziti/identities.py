@@ -41,7 +41,8 @@ async def register_identity(
         raise ServiceNotFoundError(f"A service with name `{service_external_id}` does not exists.")
 
     identity_name = identity_external_id.lower()
-    service_policy_name = f"{identity_name}:bind"
+    router_policy_name = f"{identity_external_id.lower()}.{service_name}"
+    service_policy_name = f"{identity_external_id.lower()}.{service_name}:bind"
     self_service_policy_name = f"self.{service_policy_name}"
 
     identity = await mgmt_api.search_identity(identity_name)
@@ -52,7 +53,7 @@ async def register_identity(
         service_policy = await mgmt_api.search_service_policy(self_service_policy_name)
         if service_policy:
             await mgmt_api.delete_service_policy(service_policy["id"])
-        router_policy = await mgmt_api.search_router_policy(identity_name)
+        router_policy = await mgmt_api.search_router_policy(router_policy_name)
         if router_policy:
             await mgmt_api.delete_router_policy(router_policy["id"])
         await mgmt_api.delete_identity(identity["id"])
@@ -66,9 +67,8 @@ async def register_identity(
         identity_id,
         identity,
         mrok={
-            "identity": identity_name,
-            "extension": service_external_id,
-            "instance": identity_external_id,
+            "extension": service_name,
+            "instance": identity_name,
             "domain": settings.proxy.domain,
             "tags": identity_tags,
         },
@@ -84,7 +84,7 @@ async def register_identity(
         self_service["id"],
         identity_id,
     )
-    await mgmt_api.create_router_policy(identity_name, identity_id)
+    await mgmt_api.create_router_policy(router_policy_name, identity_id)
 
     return identity, identity_json
 
@@ -100,8 +100,9 @@ async def unregister_identity(
     if not service:
         raise ServiceNotFoundError(f"A service with name `{service_external_id}` does not exists.")
 
-    identity_name = f"{identity_external_id.lower()}.{service_name}"
-    service_policy_name = f"{identity_name}:bind"
+    identity_name = identity_external_id.lower()
+    router_policy_name = f"{identity_external_id.lower()}.{service_name}"
+    service_policy_name = f"{identity_external_id.lower()}.{service_name}:bind"
 
     identity = await mgmt_api.search_identity(identity_name)
     if not identity:
@@ -120,7 +121,7 @@ async def unregister_identity(
     service_policy = await mgmt_api.search_service_policy(service_policy_name)
     if service_policy:
         await mgmt_api.delete_service_policy(service_policy["id"])
-    router_policy = await mgmt_api.search_router_policy(identity_name)
+    router_policy = await mgmt_api.search_router_policy(router_policy_name)
     if router_policy:
         await mgmt_api.delete_router_policy(router_policy["id"])
     await mgmt_api.delete_identity(identity["id"])

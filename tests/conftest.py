@@ -33,6 +33,7 @@ def settings_factory() -> SettingsFactory:
                 "management": "https://ziti.example.com",
                 "client": "https://ziti.example.com",
             },
+            "connect_timeout": 0.25,
             "read_timeout": 10,
             "ssl_verify": True,
             "auth": {"username": "user", "password": "pass", "identity": None},
@@ -102,7 +103,6 @@ def ziti_identity_json() -> dict[str, Any]:
         },
         "enableHa": False,
         "mrok": {
-            "identity": "ins-0000-0000-0000.ext-0000-0000",
             "extension": "ext-0000-0000",
             "instance": "ins-0000-0000-0000",
             "domain": "exts.platform.softwareone.com",

@@ -524,6 +524,7 @@ async def test_identity_auth(
     settings = settings_factory(
         ziti={
             "api": {"management": "https://ziti.example.com"},
+            "connect_timeout": 0.25,
             "read_timeout": 10,
             "ssl_verify": True,
             "auth": {"identity": "my-identity.json"},
