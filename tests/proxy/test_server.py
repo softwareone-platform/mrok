@@ -8,7 +8,7 @@ from mrok.proxy.ziticorn import BackendConfig, Server
 async def test_serve(mocker: MockerFixture):
     mocked_socket = mocker.MagicMock()
     mocker.patch.object(BackendConfig, "bind_socket", return_value=mocked_socket)
-    mocker.patch.object(BackendConfig, "get_identity_info", return_value=("ext", "ins.ext", "ins"))
+    mocker.patch.object(BackendConfig, "get_identity_info", return_value=("ext", "ins"))
     mocked_inner_serve = mocker.patch.object(Server, "_serve")
 
     async def fake_asgi_app(scope, receive, send):
@@ -25,7 +25,7 @@ async def test_serve(mocker: MockerFixture):
 async def test_serve_with_socket(mocker: MockerFixture):
     mocked_socket = mocker.MagicMock()
     mocked_bind = mocker.patch.object(BackendConfig, "bind_socket")
-    mocker.patch.object(BackendConfig, "get_identity_info", return_value=("ext", "ins.ext", "ins"))
+    mocker.patch.object(BackendConfig, "get_identity_info", return_value=("ext", "ins"))
     mocked_inner_serve = mocker.patch.object(Server, "_serve")
 
     async def fake_asgi_app(scope, receive, send):

@@ -23,7 +23,6 @@ class X509Credentials(BaseModel):
 
 class ServiceMetadata(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    identity: str
     extension: str
     instance: str
     domain: str | None = None

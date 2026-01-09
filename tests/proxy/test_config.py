@@ -15,7 +15,7 @@ def test_backend_config_init(ziti_identity_json: dict, ziti_identity_file: str):
     assert config.lifespan == "auto"
     assert config.backlog == 2048
     assert config.service_name == ziti_identity_json["mrok"]["extension"]
-    assert config.identity_name == ziti_identity_json["mrok"]["identity"]
+    assert config.instance_id == ziti_identity_json["mrok"]["instance"]
     assert config.identity_file == ziti_identity_file
 
 
