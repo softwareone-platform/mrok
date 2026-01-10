@@ -10,12 +10,17 @@ It uses the [OpenZiti](https://openziti.io) zero-trust network overlay to create
 - **Agent** – Runs alongside an extension in two modes:
   - *Sidecar mode*: proxies traffic between the Ziti network and a local TCP or Unix socket.
   - *Embeddable mode*: integrates with ASGI servers (e.g. Uvicorn) to serve a Python application directly.
+- **Frontend** - Proxies internet request to a specific extension through the OpenZiti network.
 - **CLI** – A command-line tool for administrative tasks and for running the agent in either mode.
 
 ## Key Features
 - Secure, outbound-initiated connectivity for Extension web apps.
 - Zero-trust networking with automatic balancing across Extension instances.
 - Simple API and CLI for managing services and identities.
+
+## Development
+The included docker compose starts a local Ziti Network (controller + router) and mrok (controller and frontend).
+
 
 ## License
 [Apache 2.0](LICENSE)

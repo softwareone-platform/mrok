@@ -3,7 +3,7 @@ FROM python:3.12
 # The uv installer requires curl (and certificates) to download the release archive
 RUN apt-get clean -y; \
     apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates curl vim postgresql-client netcat-openbsd libprotobuf-c1; \
+    apt-get install -y --no-install-recommends ca-certificates curl vim postgresql-client netcat-openbsd libprotobuf-c1 dnsutils; \
     apt-get autoremove --purge -y; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
