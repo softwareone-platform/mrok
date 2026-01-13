@@ -2,10 +2,8 @@ import asyncio
 import logging
 import time
 
-from mrok.proxy.constants import MAX_REQUEST_BODY_BYTES, MAX_RESPONSE_BODY_BYTES
 from mrok.proxy.metrics import MetricsCollector
 from mrok.proxy.models import FixedSizeByteBuffer, HTTPHeaders, HTTPRequest, HTTPResponse
-from mrok.proxy.utils import must_capture_request, must_capture_response
 from mrok.types.proxy import (
     ASGIApp,
     ASGIReceive,
@@ -14,6 +12,9 @@ from mrok.types.proxy import (
     ResponseCompleteCallback,
     Scope,
 )
+
+MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
+MAX_RESPONSE_BODY_BYTES = 5 * 1024 * 1024
 
 logger = logging.getLogger("mrok.proxy")
 
@@ -42,7 +43,7 @@ class CaptureMiddleware:
         state = {}
 
         req_buf = FixedSizeByteBuffer(MAX_REQUEST_BODY_BYTES)
-        capture_req_body = must_capture_request(method, req_headers)
+        capture_req_body = method.upper() not in ("GET", "HEAD", "OPTIONS", "TRACE")
 
         request = HTTPRequest(
             method=method,
@@ -68,9 +69,7 @@ class CaptureMiddleware:
                 resp_headers = HTTPHeaders.from_asgi(msg.get("headers", []))
                 state["resp_headers_raw"] = resp_headers
 
-                state["capture_resp_body"] = must_capture_response(resp_headers)
-
-            if state["capture_resp_body"] and msg["type"] == "http.response.body":
+            if msg["type"] == "http.response.body":
                 body = msg.get("body", b"")
                 resp_buf.write(body)
 
@@ -91,8 +90,8 @@ class CaptureMiddleware:
             status=state["status"] or 0,
             headers=state["resp_headers_raw"],
             duration=duration,
-            body=resp_buf.getvalue() if state["capture_resp_body"] else None,
-            body_truncated=resp_buf.overflow if state["capture_resp_body"] else None,
+            body=resp_buf.getvalue(),
+            body_truncated=resp_buf.overflow,
         )
         asyncio.create_task(self._on_response_complete(response))
 

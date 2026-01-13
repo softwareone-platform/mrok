@@ -190,3 +190,5 @@ taplo.toml
 
 # Ignore dynaconf secret files
 .secrets.*
+
+snapshot_report.html

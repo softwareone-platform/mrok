@@ -1,11 +1,38 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic.functional_serializers import PlainSerializer
+from pydantic.functional_validators import PlainValidator
 from pydantic_core import core_schema
+
+
+def serialize_b64(v: bytes) -> str:
+    return base64.b64encode(v).decode("ascii")
+
+
+def deserialize_b64(v):
+    if isinstance(v, bytes):
+        return v
+    if isinstance(v, str):
+        try:
+            return base64.b64decode(v, validate=True)
+        except binascii.Error as e:  # pragma: no branch
+            raise ValueError("Invalid base64 data") from e
+    raise TypeError("Expected bytes or base64 string")  # pragma: no cover
+
+
+Base64Bytes = Annotated[
+    bytes,
+    PlainValidator(deserialize_b64),
+    PlainSerializer(serialize_b64, return_type=str),
+]
 
 
 class X509Credentials(BaseModel):
@@ -16,9 +43,9 @@ class X509Credentials(BaseModel):
     @field_validator("key", "cert", "ca", mode="before")
     @classmethod
     def strip_pem_prefix(cls, value: str) -> str:
-        if isinstance(value, str) and value.startswith("pem:"):
+        if isinstance(value, str) and value.startswith("pem:"):  # pragma: no branch
             return value[4:]
-        return value
+        return value  # pragma: no cover
 
 
 class ServiceMetadata(BaseModel):
@@ -33,10 +60,10 @@ class Identity(BaseModel):
     model_config = ConfigDict(extra="ignore")
     zt_api: str = Field(validation_alias="ztAPI")
     id: X509Credentials
+    mrok: ServiceMetadata
+    enable_ha: bool = Field(default=False, validation_alias="enableHa")
     zt_apis: str | None = Field(default=None, validation_alias="ztAPIs")
     config_types: str | None = Field(default=None, validation_alias="configTypes")
-    enable_ha: bool = Field(default=False, validation_alias="enableHa")
-    mrok: ServiceMetadata | None = None
 
     @staticmethod
     def load_from_file(path: str | Path) -> Identity:
@@ -76,7 +103,7 @@ class FixedSizeByteBuffer:
 
 
 class HTTPHeaders(dict):
-    def __init__(self, initial=None):
+    def __init__(self, initial: Mapping[Any, Any] | None = None):
         super().__init__()
         if initial:
             for k, v in initial.items():
@@ -130,9 +157,9 @@ class HTTPRequest(BaseModel):
     method: str
     url: str
     headers: HTTPHeaders
-    query_string: bytes
+    query_string: Base64Bytes | None = None
     start_time: float
-    body: bytes | None = None
+    body: Base64Bytes | None = None
     body_truncated: bool | None = None
 
 
@@ -142,7 +169,7 @@ class HTTPResponse(BaseModel):
     status: int
     headers: HTTPHeaders
     duration: float
-    body: bytes | None = None
+    body: Base64Bytes | None = None
     body_truncated: bool | None = None
 
 

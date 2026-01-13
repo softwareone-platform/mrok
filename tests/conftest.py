@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import tempfile
 from collections.abc import AsyncGenerator, Generator
@@ -7,6 +8,7 @@ from typing import Any
 
 import jwt
 import pytest
+import zmq
 from asgi_lifespan import LifespanManager
 from dynaconf import Dynaconf
 from fastapi import FastAPI
@@ -15,7 +17,7 @@ from pytest_httpx import HTTPXMock
 
 from mrok.conf import Settings, get_settings
 from mrok.types.proxy import ASGIReceive, ASGISend, Message
-from tests.types import ReceiveFactory, SendFactory, SettingsFactory
+from tests.types import ReceiveFactory, SendFactory, SettingsFactory, StatusEventFactory
 
 
 @pytest.fixture(scope="session")
@@ -276,3 +278,139 @@ def send_factory() -> SendFactory:
         return send
 
     return _factory
+
+
+@pytest.fixture()
+def response_event_factory():
+    def _response_event(
+        method: str = "GET",
+        url: str = "/test",
+        request_headers: dict[str, str] | None = None,
+        request_querystring: bytes | None = None,
+        request_body: bytes | None = None,
+        request_truncated: bool = False,
+        response_headers: dict[str, str] | None = None,
+        response_status: int = 200,
+        response_body: bytes | None = b'{"test": "json"}',
+        response_truncated: bool = False,
+        duration: float = 10.3,
+    ) -> dict[str, Any]:
+        request_headers = request_headers or {"accept": "application/json"}
+        response_headers = response_headers or {"content-type": "application/json"}
+        request = {
+            "method": method,
+            "url": url,
+            "headers": request_headers,
+            "query_string": None,
+            "start_time": 0.0,
+            "body": None,
+            "body_truncated": request_truncated,
+        }
+
+        response = {
+            "type": "response",
+            "data": {
+                "type": "response",
+                "request": request,
+                "status": response_status,
+                "headers": response_headers,
+                "duration": duration,
+                "body": None,
+                "body_truncated": response_truncated,
+            },
+        }
+        if request_querystring:
+            request["query_string"] = base64.b64encode(request_querystring).decode("ascii")
+        if request_body:
+            request["body"] = base64.b64encode(request_body).decode("ascii")
+        if response_body:
+            response["data"]["body"] = base64.b64encode(response_body).decode("ascii")  # type: ignore[index]
+        return response
+
+    return _response_event
+
+
+@pytest.fixture()
+def status_event_factory() -> StatusEventFactory:
+    def _status_event(
+        process_cpu: float = 55.1,
+        process_mem: float = 21.2,
+        requests_rps: int = 123,
+        requests_total: int = 1000,
+        requests_successful: int = 10,
+        requests_failed: int = 30,
+        bytes_in: int = 1000,
+        bytes_out: int = 2000,
+    ):
+        return {
+            "type": "status",
+            "data": {
+                "type": "status",
+                "meta": {
+                    "extension": "EXT-1223-4443",
+                    "instance": "INS-3737-8373-7373-1113-3384",
+                    "domain": "ext.mrok.test",
+                    "tags": None,
+                },
+                "metrics": {
+                    "worker_id": "my-worker-id",
+                    "data_transfer": {"bytes_in": bytes_in, "bytes_out": bytes_out},
+                    "requests": {
+                        "rps": requests_rps,
+                        "total": requests_total,
+                        "successful": requests_successful,
+                        "failed": requests_failed,
+                    },
+                    "response_time": {
+                        "avg": 10.0,
+                        "min": 1,
+                        "max": 30,
+                        "p50": 11,
+                        "p90": 22,
+                        "p99": 11,
+                    },
+                    "process": {"cpu": process_cpu, "mem": process_mem},
+                },
+            },
+        }
+
+    return _status_event
+
+
+@pytest.fixture()
+def multipart_body() -> tuple[str, bytes]:
+    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+    data = b"""------WebKitFormBoundary7MA4YWxkTrZu0gW\r
+Content-Disposition: form-data; name="username"\r
+\r
+john_doe\r
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r
+Content-Disposition: form-data; name="email"\r
+\r
+john@example.com\r
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r
+Content-Disposition: form-data; name="message"\r
+\r
+Hello, this is a test message!\r
+------WebKitFormBoundary7MA4YWxkTrZu0gW\r
+Content-Disposition: form-data; name="file"; filename="test.txt"\r
+Content-Type: application/octet-stream\r
+\r
+binary file content\r
+------WebKitFormBoundary7MA4YWxkTrZu0gW--\r
+"""
+
+    return boundary, data
+
+
+@pytest.fixture(scope="session")
+def zmq_publisher() -> Generator[tuple[zmq.Socket, int], None, None]:
+    context: zmq.Context = zmq.Context.instance()
+    socket: zmq.Socket = context.socket(zmq.XPUB)
+
+    port: int = socket.bind_to_random_port("tcp://127.0.0.1")
+
+    yield socket, port
+
+    socket.close()
+    context.term()
