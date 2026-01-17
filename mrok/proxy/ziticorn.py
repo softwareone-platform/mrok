@@ -1,4 +1,3 @@
-import json
 import logging
 import socket
 from collections.abc import Callable
@@ -10,6 +9,7 @@ from uvicorn import config, server
 from uvicorn.lifespan.on import LifespanOn
 from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol as UvHttpToolsProtocol
 
+from mrok.proxy.models import Identity
 from mrok.types.proxy import ASGIApp
 
 logger = logging.getLogger("mrok.proxy")
@@ -48,8 +48,8 @@ class BackendConfig(config.Config):
         backlog: int = 2048,
     ):
         self.identity_file = identity_file
+        self.identity = Identity.load_from_file(self.identity_file)
         self.ziti_load_timeout_ms = ziti_load_timeout_ms
-        self.service_name, self.instance_id = self.get_identity_info(identity_file)
         super().__init__(
             app,
             loop="asyncio",
@@ -57,26 +57,19 @@ class BackendConfig(config.Config):
             backlog=backlog,
         )
 
-    def get_identity_info(self, identity_file: str | Path):
-        with open(identity_file) as f:
-            identity_data = json.load(f)
-            try:
-                instance_id = identity_data["mrok"]["instance"]
-                service_name = identity_data["mrok"]["extension"]
-                return service_name, instance_id
-            except KeyError:
-                raise ValueError("Invalid identity file: identity file is not mrok compatible.")
-
     def bind_socket(self) -> socket.socket:
-        logger.info(f"Connect to Ziti service '{self.service_name} ({self.instance_id})'")
+        logger.info(
+            "Connect to Ziti service "
+            f"'{self.identity.mrok.extension} ({self.identity.mrok.instance})'"
+        )
 
         ctx, err = openziti.load(str(self.identity_file), timeout=self.ziti_load_timeout_ms)
         if err != 0:
             raise RuntimeError(f"Failed to load Ziti identity from {self.identity_file}: {err}")
 
-        sock = ctx.bind(self.service_name)
+        sock = ctx.bind(self.identity.mrok.extension)
         sock.listen(self.backlog)
-        logger.info(f"listening on ziti service {self.service_name} for connections")
+        logger.info(f"listening on ziti service {self.identity.mrok.extension} for connections")
         return sock
 
     def configure_logging(self) -> None:

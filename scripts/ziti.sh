@@ -58,5 +58,3 @@ ziti edge quickstart \
     --ctrl-port "${ZITI_CTRL_PORT}" \
     --router-address "localhost" \
     --router-port "${ZITI_ROUTER_PORT}"
-
-

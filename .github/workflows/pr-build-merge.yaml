@@ -51,7 +51,16 @@ jobs:
         run: uv run bandit -c pyproject.toml -r . -f json -o bandit.json
 
       - name: Run tests
+        id: run-tests
         run: uv run pytest
+
+      - name: Upload snapshot report on test failure
+        if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-report-${{ matrix.python-version }}
+          path: snapshot_report.html
+          if-no-files-found: warn
 
   build:
     runs-on: ubuntu-latest
@@ -81,6 +90,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run tests
+        id: run-tests
         run: uv run pytest
 
       - name: Compute added/removed lines for notification
