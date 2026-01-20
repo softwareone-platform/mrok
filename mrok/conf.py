@@ -15,12 +15,6 @@ DEFAULT_SETTINGS = {
         "ssl_verify": False,
     },
     "PAGINATION": {"limit": 50},
-    "SIDECAR": {
-        "textual_port": 4040,
-        "store_port": 5051,
-        "store_size": 1000,
-        "textual_command": "python mrok/agent/sidecar/inspector.py",
-    },
 }
 
 _settings = None

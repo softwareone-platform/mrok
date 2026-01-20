@@ -28,7 +28,6 @@ def settings_factory() -> SettingsFactory:
         pagination: dict | None = None,
         proxy: dict | None = None,
         auth: dict | None = None,
-        sidecar: dict | None = None,
     ) -> Settings:
         ziti = ziti or {
             "api": {
@@ -46,20 +45,16 @@ def settings_factory() -> SettingsFactory:
         }
         pagination = pagination or {"limit": 5}
         auth = auth or {
-            "openid_config_url": "http://example.com/openid-configuration",
-            "audience": "mrok-audience",
-            "read_timeout": 10,
+            "backends": ["oidc"],
+            "oidc": {
+                "openid_config_url": "http://example.com/openid-configuration",
+                "audience": "mrok-audience",
+            },
         }
         proxy = proxy or {
             "identity": "public",
             "mode": "zrok",
             "domain": "exts.s1.today",
-        }
-        sidecar = sidecar or {
-            "textual_port": 4040,
-            "store_port": 5051,
-            "store_size": 1000,
-            "textual_command": "python mrok/agent/sidecar/inspector.py",
         }
         settings = Dynaconf(
             environments=True,
@@ -70,7 +65,6 @@ def settings_factory() -> SettingsFactory:
             PAGINATION=pagination,
             PROXY=proxy,
             AUTH=auth,
-            SIDECAR=sidecar,
         )
 
         return settings
@@ -203,7 +197,7 @@ def fastapi_app(settings_factory: SettingsFactory) -> FastAPI:
     settings = settings_factory()
     from mrok.controller.app import setup_app
 
-    app = setup_app()
+    app = setup_app(settings)
     app.dependency_overrides[get_settings] = lambda: settings
     return app
 
@@ -227,7 +221,7 @@ async def api_client(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.openid_config_url,
+        url=settings.auth.oidc.openid_config_url,
         json=openid_config,
         is_reusable=True,
     )

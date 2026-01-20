@@ -183,7 +183,7 @@ services:
   mrok-controller:
     build:
       context: .
-      dockerfile: prod.Dockerfile
+      dockerfile: dev.Dockerfile
     depends_on:
       ziti-controller:
         condition: service_healthy
@@ -204,13 +204,14 @@ services:
       - MROK_LOGGING__DEBUG=false
     networks:
       mrok:
+        ipv4_address: ${MROK_DEVCONTAINER_IP:-172.99.0.15}
     dns:
       - ${MROK_DNS_IP:-172.99.0.2}
 
   mrok-frontend:
     build:
       context: .
-      dockerfile: prod.Dockerfile
+      dockerfile: dev.Dockerfile
     depends_on:
       ziti-controller:
         condition: service_healthy
