@@ -20,9 +20,12 @@ logging:
   rich: True
 
 auth:
-  openid_config_url: https://example.com/openid-configuration
-  audience: my-audience
-  read_timeout: 10
+  backends:
+    - oidc
+  oidc:
+    openid_config_url: https://example.com/openid-configuration
+    audience: my-audience
+
 
 pagination:
   limit: 50

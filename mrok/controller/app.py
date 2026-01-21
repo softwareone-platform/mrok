@@ -5,8 +5,8 @@ import fastapi_pagination
 from fastapi import Depends, FastAPI
 from fastapi.routing import APIRoute, APIRouter
 
-from mrok.conf import get_settings
-from mrok.controller.auth import authenticate
+from mrok.conf import Settings, get_settings
+from mrok.controller.auth import HTTPAuthManager
 from mrok.controller.openapi import generate_openapi_spec
 from mrok.controller.routes.extensions import router as extensions_router
 from mrok.controller.routes.instances import router as instances_router
@@ -36,7 +36,8 @@ def setup_custom_serialization(router: APIRouter):
             api_route.response_model_exclude_none = True
 
 
-def setup_app():
+def setup_app(settings: Settings):
+    auth_manager = HTTPAuthManager(settings.auth)
     app = FastAPI(
         title="mrok Controller API",
         description="API to orchestrate OpenZiti for Extensions.",
@@ -53,18 +54,16 @@ def setup_app():
     app.include_router(
         extensions_router,
         prefix="/extensions",
-        dependencies=[Depends(authenticate)],
+        dependencies=[Depends(auth_manager)],
     )
     app.include_router(
         instances_router,
         prefix="/instances",
-        dependencies=[Depends(authenticate)],
+        dependencies=[Depends(auth_manager)],
     )
 
-    settings = get_settings()
-
-    app.openapi = partial(generate_openapi_spec, app, settings)
+    app.openapi = partial(generate_openapi_spec, app, settings)  # type: ignore[method-assign]
     return app
 
 
-app = setup_app()
+app = setup_app(get_settings())
