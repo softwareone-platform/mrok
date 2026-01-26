@@ -30,7 +30,7 @@ def register(app: typer.Typer) -> None:
             int,
             typer.Option(
                 "--port",
-                "-P",
+                "-p",
                 help="Port to bind to. Default: 8000",
                 show_default=True,
             ),

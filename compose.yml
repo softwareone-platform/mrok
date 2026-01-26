@@ -204,7 +204,7 @@ services:
       - MROK_LOGGING__DEBUG=false
     networks:
       mrok:
-        ipv4_address: ${MROK_DEVCONTAINER_IP:-172.99.0.15}
+        ipv4_address: ${MROK_CONTROLLER_IP:-172.99.0.15}
     dns:
       - ${MROK_DNS_IP:-172.99.0.2}
 
@@ -220,7 +220,7 @@ services:
     command: >
       bash -c "
         mrok admin bootstrap /app/identities/public.json
-        mrok frontend run -w ${MROK_FRONTEND_WORKERS:-4} -h ${MROK_INTERFACE:-0.0.0.0} -P ${MROK_FRONTEND_PORT:-8080} --max-pool-keepalive-expiry 15 /app/identities/public.json
+        mrok frontend run -w ${MROK_FRONTEND_WORKERS:-4} -h ${MROK_INTERFACE:-0.0.0.0} -p ${MROK_FRONTEND_PORT:-8080} --max-pool-keepalive-expiry 15 /app/identities/public.json
       "
     ports:
       - ${MROK_INTERFACE:-0.0.0.0}:${MROK_FRONTEND_PORT:-8080}:${MROK_FRONTEND_PORT:-8080}
@@ -237,7 +237,7 @@ services:
       - MROK_LOGGING__DEBUG=false
     networks:
       mrok:
-        ipv4_address: ${MROK_PROXY_IP:-172.99.0.10}
+        ipv4_address: ${MROK_FRONTEND_IP:-172.99.0.10}
     dns:
       - ${MROK_DNS_IP:-172.99.0.2}
 

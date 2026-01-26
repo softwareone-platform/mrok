@@ -20,8 +20,8 @@ def test_run_asgi(
     )
     assert result.exit_code == 0
     mocked_ziticorn.assert_called_once_with(
-        "my:app",
         "ins-1234-5678-0001.json",
+        "my:app",
         workers=2,
         reload=True,
         publishers_port=4000,
