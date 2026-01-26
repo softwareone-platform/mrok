@@ -21,7 +21,7 @@ services:
     image: busybox
     environment:
       MROK_DOMAIN: ${MROK_DOMAIN:-mrok.test}
-      MROK_PROXY_DOMAIN: ${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      MROK_FRONTEND_DOMAIN: ${MROK_FRONTEND_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
       MROK_FRONTEND_IP: ${MROK_FRONTEND_IP:-172.99.0.10}
       ZITI_CTRL_FQDN: ${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}
       ZITI_CTRL_IP: ${ZITI_CTRL_IP:-172.99.0.20}
@@ -40,12 +40,12 @@ services:
               fallthrough
           }
           template IN A {
-              match .*\.$$MROK_PROXY_DOMAIN
+              match .*\.$$MROK_FRONTEND_DOMAIN
               answer \"{{ .Name }} $$TTL IN A $$MROK_FRONTEND_IP\"
               fallthrough
           }
           template IN AAAA {
-              match .*\.$$MROK_PROXY_DOMAIN
+              match .*\.$$MROK_FRONTEND_DOMAIN
               fallthrough
           }
           forward . 8.8.8.8
@@ -199,7 +199,7 @@ services:
       - MROK_ZITI__API__MANAGEMENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
       - MROK_ZITI__AUTH__USERNAME=${ZITI_USER:-admin}
       - MROK_ZITI__AUTH__PASSWORD=${ZITI_PWD}
-      - MROK_PROXY__DOMAIN=${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      - MROK_FRONTEND__DOMAIN=${MROK_FRONTEND_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
       - MROK_LOGGING__RICH=false
       - MROK_LOGGING__DEBUG=false
     networks:
@@ -232,7 +232,7 @@ services:
       - MROK_ZITI__API__MANAGEMENT=https://${ZITI_CTRL_SUBDOMAIN:-ziti-controller}.${MROK_DOMAIN:-mrok.test}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
       - MROK_ZITI__AUTH__USERNAME=${ZITI_USER:-admin}
       - MROK_ZITI__AUTH__PASSWORD=${ZITI_PWD}
-      - MROK_PROXY__DOMAIN=${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      - MROK_FRONTEND__DOMAIN=${MROK_FRONTEND_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
       - MROK_LOGGING__RICH=false
       - MROK_LOGGING__DEBUG=false
     networks:
@@ -253,7 +253,7 @@ services:
       - MROK_ZITI__AUTH__USERNAME=${ZITI_USER:-admin}
       - MROK_ZITI__AUTH__PASSWORD=${ZITI_PWD}
       - MROK_LOGGING__RICH=false
-      - MROK_PROXY__DOMAIN=${MROK_PROXY_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
+      - MROK_FRONTEND__DOMAIN=${MROK_FRONTEND_SUBDOMAIN:-ext}.${MROK_DOMAIN:-mrok.test}
     command: sleep infinity
     networks:
       mrok:

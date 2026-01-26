@@ -1,0 +1,5 @@
+{
+    "status": "{{ status }}",
+    "title": "{{ status_title }}",
+    "message": "{{ body }}"
+}

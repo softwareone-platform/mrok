@@ -57,7 +57,7 @@ class ProxyAppBase(abc.ABC):
             return
 
         if scope.get("type") != "http":
-            await self._send_error(send, 500, "Unsupported")
+            await self.send_error_response(scope, send, 500, "Unsupported")
             return
 
         try:
@@ -105,15 +105,23 @@ class ProxyAppBase(abc.ABC):
             await response.aclose()
 
         except ProxyError as pe:
-            await self._send_error(send, pe.http_status, pe.message)
+            await self.send_error_response(scope, send, pe.http_status, pe.message)
 
         except Exception:
             logger.exception("Unexpected error in forwarder")
-            await self._send_error(send, 502, "Bad Gateway")
+            await self.send_error_response(scope, send, 502, "Bad Gateway")
 
-    async def _send_error(self, send: ASGISend, http_status: int, body: str):
+    async def send_error_response(
+        self,
+        scope: Scope,
+        send: ASGISend,
+        http_status: int,
+        body: str,
+        headers: list[tuple[bytes, bytes]] | None = None,
+    ):
+        headers = headers or [(b"content-type", b"text/plain")]
         try:
-            await send({"type": "http.response.start", "status": http_status, "headers": []})
+            await send({"type": "http.response.start", "status": http_status, "headers": headers})
             await send({"type": "http.response.body", "body": body.encode()})
         except Exception as e:  # pragma: no cover
             logger.error(f"Cannot send error response: {e}")

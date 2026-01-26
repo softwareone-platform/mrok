@@ -27,8 +27,8 @@ async def test_bootstrap_identity(
     identity_id, identity_json = await bootstrap_identity(
         mocked_mgmt_api,
         mocker.AsyncMock(),
-        settings.proxy.identity,
-        settings.proxy.mode,
+        settings.frontend.identity,
+        settings.frontend.mode,
         False,
         None,
     )
@@ -66,8 +66,8 @@ async def test_bootstrap_identity_with_forced(
     identity_id, identity_json = await bootstrap_identity(
         mocked_mgmt_api,
         mocker.AsyncMock(),
-        settings.proxy.identity,
-        settings.proxy.mode,
+        settings.frontend.identity,
+        settings.frontend.mode,
         True,
         {},
     )
@@ -101,8 +101,8 @@ async def test_bootstrap_identity_with_forced_and_no_policy(
     identity_id, identity_json = await bootstrap_identity(
         mocked_mgmt_api,
         mocker.AsyncMock(),
-        settings.proxy.identity,
-        settings.proxy.mode,
+        settings.frontend.identity,
+        settings.frontend.mode,
         True,
         {},
     )
@@ -132,8 +132,8 @@ async def test_bootstrap_identity_already_bootstrapped(
     identity_id, identity_json = await bootstrap_identity(
         mocked_mgmt_api,
         mocker.AsyncMock(),
-        settings.proxy.identity,
-        settings.proxy.mode,
+        settings.frontend.identity,
+        settings.frontend.mode,
         False,
         {},
     )
@@ -172,8 +172,8 @@ async def test_bootstrap_identity_with_forced_and_config_type(
     identity_id, identity_json = await bootstrap_identity(
         mocked_mgmt_api,
         mocker.AsyncMock(),
-        settings.proxy.identity,
-        settings.proxy.mode,
+        settings.frontend.identity,
+        settings.frontend.mode,
         True,
         {},
     )
