@@ -15,6 +15,18 @@ DEFAULT_SETTINGS = {
         "ssl_verify": False,
     },
     "PAGINATION": {"limit": 50},
+    "IDENTIFIERS": {
+        "extension": {
+            "regex": "(?i)EXT-\\d{4}-\\d{4}",
+            "format": "EXT-xxxx-yyyy",
+            "example": "EXT-2000-1000",
+        },
+        "instance": {
+            "regex": "(?i)INS-\\d{4}-\\d{4}-\\d{4}",
+            "format": "INS-xxxx-yyyy-zzzz",
+            "example": "INS-2004-2000-3000",
+        },
+    },
 }
 
 _settings = None

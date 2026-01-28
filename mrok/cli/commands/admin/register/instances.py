@@ -6,8 +6,11 @@ from typing import Annotated
 import typer
 
 from mrok.cli.commands.admin.utils import parse_tags
-from mrok.conf import Settings
-from mrok.constants import RE_EXTENSION_ID, RE_INSTANCE_ID
+from mrok.cli.utils import (
+    validate_extension_id,
+    validate_instance_id,
+)
+from mrok.conf import Settings, get_settings
 from mrok.ziti.api import ZitiClientAPI, ZitiManagementAPI
 from mrok.ziti.identities import register_identity
 
@@ -21,27 +24,21 @@ async def do_register(
         )
 
 
-def validate_extension_id(extension_id: str):
-    if not RE_EXTENSION_ID.fullmatch(extension_id):
-        raise typer.BadParameter("it must match EXT-xxxx-yyyy (case-insensitive)")
-    return extension_id
-
-
-def validate_instance_id(instance_id: str):
-    if not RE_INSTANCE_ID.fullmatch(instance_id):
-        raise typer.BadParameter("it must match INS-xxxx-yyyy-zzzz (case-insensitive)")
-    return instance_id
-
-
 def register(app: typer.Typer) -> None:
+    settings = get_settings()
+
     @app.command("instance")
     def register_instance(
         ctx: typer.Context,
         extension_id: str = typer.Argument(
-            ..., callback=validate_extension_id, help="Extension ID in format EXT-xxxx-yyyy"
+            ...,
+            callback=validate_extension_id,
+            help=f"Extension ID in the format {settings.identifiers.extension.format}",
         ),
         instance_id: str = typer.Argument(
-            ..., callback=validate_instance_id, help="Instance ID in format INS-xxxx-yyyy-zzzz"
+            ...,
+            callback=validate_instance_id,
+            help=f"Instance ID in the format {settings.identifiers.instance.format}",
         ),
         output: Path = typer.Argument(
             ...,
