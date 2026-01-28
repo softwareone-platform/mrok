@@ -34,6 +34,15 @@ auth:
     openid_config_url: https://example.com/openid-configuration
     audience: my-audience
 
+identifiers:
+  extension:
+    regex: '(?i)EXT-\d{4}-\d{4}'
+    format: 'EXT-xxxx-yyyy'
+    example: 'EXT-2000-1000'
 
+  instance:
+    regex: '(?i)INS-\d{4}-\d{4}-\d{4}'
+    format: 'INS-xxxx-yyyy-CIAO'
+    example: 'INS-2004-2000-3000'
 pagination:
   limit: 50

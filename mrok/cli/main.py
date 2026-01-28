@@ -41,7 +41,6 @@ def show_banner():
     colors = gradient("#00C9CD", "#472AFF", half_length) + gradient(
         "#472AFF", "#392D9C", half_length + 1
     )
-    print(colors)
     console = get_console()
 
     for line in banner_lines:

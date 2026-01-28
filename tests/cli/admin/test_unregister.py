@@ -56,7 +56,7 @@ def test_unregister_extension_command_invalid_extension_id(
         shlex.split("admin unregister extension EXT-1234"),
     )
     assert result.exit_code == 2
-    assert "Invalid value for 'EXTENSION_ID': ext_id must match EXT-xxxx-yyyy" in result.stderr
+    assert "Invalid value for 'EXTENSION_ID': it must match EXT-xxxx-yyyy" in result.stderr
 
 
 @pytest.mark.asyncio
@@ -131,7 +131,7 @@ def test_unregister_instance_command_invalid_extension_id(
         shlex.split("admin unregister instance EXT-1234 INS-1234-0001"),
     )
     assert result.exit_code == 2
-    assert "Invalid value for 'EXTENSION_ID': ext_id must match EXT-xxxx-yyyy" in result.stderr
+    assert "Invalid value for 'EXTENSION_ID': it must match EXT-xxxx-yyyy" in result.stderr
 
 
 @pytest.mark.asyncio
