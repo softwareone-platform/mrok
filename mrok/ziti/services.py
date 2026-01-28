@@ -19,15 +19,15 @@ async def register_service(
 ) -> dict[str, Any]:
     service_name = external_id.lower()
     registered = False
-    proxy_identity = await mgmt_api.search_identity(settings.proxy.identity)
+    proxy_identity = await mgmt_api.search_identity(settings.frontend.identity)
     if not proxy_identity:
         raise ProxyIdentityNotFoundError(
-            f"Identity for proxy `{settings.proxy.identity}` not found.",
+            f"Identity for proxy `{settings.frontend.identity}` not found.",
         )
 
-    config_type = await mgmt_api.search_config_type(f"{settings.proxy.mode}.proxy.v1")
+    config_type = await mgmt_api.search_config_type(f"{settings.frontend.mode}.proxy.v1")
     if not config_type:
-        raise ConfigTypeNotFoundError(f"Config type `{settings.proxy.mode}.proxy.v1` not found.")
+        raise ConfigTypeNotFoundError(f"Config type `{settings.frontend.mode}.proxy.v1` not found.")
 
     config = await mgmt_api.search_config(service_name)
     if not config:
@@ -43,7 +43,7 @@ async def register_service(
     else:
         service_id = service["id"]
     proxy_identity_id = proxy_identity["id"]
-    service_policy_name = f"{service_name}:{settings.proxy.identity}:dial"
+    service_policy_name = f"{service_name}:{settings.frontend.identity}:dial"
     dial_service_policy = await mgmt_api.search_service_policy(service_policy_name)
     if not dial_service_policy:
         await mgmt_api.create_dial_service_policy(
@@ -75,7 +75,7 @@ async def unregister_service(
     if router_policy:
         await mgmt_api.delete_service_router_policy(router_policy["id"])
 
-    service_policy_name = f"{service_name}:{settings.proxy.identity}:dial"
+    service_policy_name = f"{service_name}:{settings.frontend.identity}:dial"
 
     dial_service_policy = await mgmt_api.search_service_policy(service_policy_name)
     if dial_service_policy:

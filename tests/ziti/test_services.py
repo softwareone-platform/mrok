@@ -31,8 +31,8 @@ async def test_register_extension(mocker: MockerFixture, settings_factory: Setti
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
-    mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
-    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
+    mocked_api.search_identity.assert_awaited_once_with(settings.frontend.identity)
+    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.frontend.mode}.proxy.v1")
     mocked_api.search_config.assert_awaited_once_with("ext-1234")
     mocked_api.create_config.assert_awaited_once_with(
         "ext-1234",
@@ -43,10 +43,10 @@ async def test_register_extension(mocker: MockerFixture, settings_factory: Setti
     mocked_api.create_service.assert_called_once_with("ext-1234", "config_id", tags=tags)
     mocked_api.get_service.assert_awaited_once_with("service_id")
     mocked_api.search_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial"
+        f"ext-1234:{settings.frontend.identity}:dial"
     )
     mocked_api.create_dial_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial",
+        f"ext-1234:{settings.frontend.identity}:dial",
         "service_id",
         "proxy_identity_id",
         tags=tags,
@@ -69,7 +69,7 @@ async def test_register_extension_no_proxy_identity(
 
     with pytest.raises(ProxyIdentityNotFoundError) as cv:
         await register_service(settings, mocked_api, "EXT-1234", None)
-    assert str(cv.value) == f"Identity for proxy `{settings.proxy.identity}` not found."
+    assert str(cv.value) == f"Identity for proxy `{settings.frontend.identity}` not found."
 
 
 @pytest.mark.asyncio
@@ -83,7 +83,7 @@ async def test_register_extension_no_config_type(
 
     with pytest.raises(ConfigTypeNotFoundError) as cv:
         await register_service(settings, mocked_api, "EXT-1234", None)
-    assert str(cv.value) == f"Config type `{settings.proxy.mode}.proxy.v1` not found."
+    assert str(cv.value) == f"Config type `{settings.frontend.mode}.proxy.v1` not found."
 
 
 @pytest.mark.asyncio
@@ -105,17 +105,17 @@ async def test_register_extension_config_exists(
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
-    mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
-    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
+    mocked_api.search_identity.assert_awaited_once_with(settings.frontend.identity)
+    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.frontend.mode}.proxy.v1")
     mocked_api.search_config.assert_awaited_once_with("ext-1234")
     mocked_api.create_config.assert_not_awaited()
     mocked_api.search_service.assert_called_once_with("ext-1234")
     mocked_api.create_service.assert_called_once_with("ext-1234", "config_id", tags=tags)
     mocked_api.search_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial"
+        f"ext-1234:{settings.frontend.identity}:dial"
     )
     mocked_api.create_dial_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial",
+        f"ext-1234:{settings.frontend.identity}:dial",
         "service_id",
         "proxy_identity_id",
         tags=tags,
@@ -145,18 +145,18 @@ async def test_register_extension_service_exists(
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
-    mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
-    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
+    mocked_api.search_identity.assert_awaited_once_with(settings.frontend.identity)
+    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.frontend.mode}.proxy.v1")
     mocked_api.search_config.assert_awaited_once_with("ext-1234")
     mocked_api.create_config.assert_not_awaited()
     mocked_api.search_service.assert_called_once_with("ext-1234")
     mocked_api.create_service.assert_not_awaited()
     mocked_api.get_service.assert_not_awaited()
     mocked_api.search_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial"
+        f"ext-1234:{settings.frontend.identity}:dial"
     )
     mocked_api.create_dial_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial",
+        f"ext-1234:{settings.frontend.identity}:dial",
         "service_id",
         "proxy_identity_id",
         tags=tags,
@@ -186,15 +186,15 @@ async def test_register_extension_dial_policy_exists(
 
     await register_service(settings, mocked_api, "EXT-1234", tags)
 
-    mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
-    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
+    mocked_api.search_identity.assert_awaited_once_with(settings.frontend.identity)
+    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.frontend.mode}.proxy.v1")
     mocked_api.search_config.assert_awaited_once_with("ext-1234")
     mocked_api.create_config.assert_not_awaited()
     mocked_api.search_service.assert_called_once_with("ext-1234")
     mocked_api.create_service.assert_not_awaited()
     mocked_api.get_service.assert_not_awaited()
     mocked_api.search_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial"
+        f"ext-1234:{settings.frontend.identity}:dial"
     )
     mocked_api.create_dial_service_policy.assert_not_awaited()
     mocked_api.search_service_router_policy.assert_awaited_once_with("ext-1234")
@@ -224,15 +224,15 @@ async def test_register_extension_router_policy_exists(
         await register_service(settings, mocked_api, "EXT-1234", tags)
     assert str(cv.value) == "Service `EXT-1234` already registered."
 
-    mocked_api.search_identity.assert_awaited_once_with(settings.proxy.identity)
-    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.proxy.mode}.proxy.v1")
+    mocked_api.search_identity.assert_awaited_once_with(settings.frontend.identity)
+    mocked_api.search_config_type.assert_awaited_once_with(f"{settings.frontend.mode}.proxy.v1")
     mocked_api.search_config.assert_awaited_once_with("ext-1234")
     mocked_api.create_config.assert_not_awaited()
     mocked_api.search_service.assert_called_once_with("ext-1234")
     mocked_api.create_service.assert_not_awaited()
     mocked_api.get_service.assert_not_awaited()
     mocked_api.search_service_policy.assert_called_once_with(
-        f"ext-1234:{settings.proxy.identity}:dial"
+        f"ext-1234:{settings.frontend.identity}:dial"
     )
     mocked_api.create_dial_service_policy.assert_not_awaited()
     mocked_api.search_service_router_policy.assert_awaited_once_with("ext-1234")

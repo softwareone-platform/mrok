@@ -22,8 +22,8 @@ async def bootstrap(
         return await bootstrap_identity(
             mgmt_api,
             client_api,
-            settings.proxy.identity,
-            settings.proxy.mode,
+            settings.frontend.identity,
+            settings.frontend.mode,
             forced,
             tags,
         )

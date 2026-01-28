@@ -7,7 +7,7 @@ DEFAULT_SETTINGS = {
         "debug": False,
         "rich": False,
     },
-    "PROXY": {
+    "FRONTEND": {
         "identity": "public",
         "mode": "zrok",
     },

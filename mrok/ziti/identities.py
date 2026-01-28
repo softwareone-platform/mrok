@@ -69,7 +69,7 @@ async def register_identity(
         mrok={
             "extension": service_name,
             "instance": identity_name,
-            "domain": settings.proxy.domain,
+            "domain": settings.frontend.domain,
             "tags": identity_tags,
         },
     )

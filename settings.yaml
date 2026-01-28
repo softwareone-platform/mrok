@@ -1,7 +1,15 @@
-proxy:
+frontend:
   identity: public
   mode: zrok
   domain: ext.mrok.test
+  errors:
+    "502":
+      html: /app/errors/error_template.html
+      json: /app/errors/error_template.json
+    "503":
+      html: /app/errors/error_template.html
+      json: /app/errors/error_template.json
+
 
 ziti:
   api:

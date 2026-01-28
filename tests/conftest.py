@@ -26,7 +26,7 @@ def settings_factory() -> SettingsFactory:
         ziti: dict | None = None,
         logging: dict | None = None,
         pagination: dict | None = None,
-        proxy: dict | None = None,
+        frontend: dict | None = None,
         auth: dict | None = None,
     ) -> Settings:
         ziti = ziti or {
@@ -51,7 +51,7 @@ def settings_factory() -> SettingsFactory:
                 "audience": "mrok-audience",
             },
         }
-        proxy = proxy or {
+        frontend = frontend or {
             "identity": "public",
             "mode": "zrok",
             "domain": "exts.s1.today",
@@ -63,7 +63,7 @@ def settings_factory() -> SettingsFactory:
             ZITI=ziti,
             LOGGING=logging,
             PAGINATION=pagination,
-            PROXY=proxy,
+            FRONTEND=frontend,
             AUTH=auth,
         )
 
@@ -408,3 +408,37 @@ def zmq_publisher() -> Generator[tuple[zmq.Socket, int], None, None]:
 
     socket.close()
     context.term()
+
+
+@pytest.fixture()
+def ziti_frontend_error_template_html() -> str:
+    return "{{ status }}\n{{ body }}\n"
+
+
+@pytest.fixture()
+def ziti_frontend_error_template_html_file(
+    ziti_frontend_error_template_html: str,
+) -> Generator[str, None, None]:
+    with tempfile.NamedTemporaryFile("w", suffix="html") as f:
+        f.write(ziti_frontend_error_template_html)
+        f.seek(0)
+        yield f.name
+
+
+@pytest.fixture()
+def ziti_frontend_error_template_json() -> str:
+    return """{
+        "status": {{ status }},
+        "body": "{{ body }}",
+    }
+"""
+
+
+@pytest.fixture()
+def ziti_frontend_error_template_json_file(
+    ziti_frontend_error_template_json: str,
+) -> Generator[str, None, None]:
+    with tempfile.NamedTemporaryFile("w", suffix="json") as f:
+        f.write(ziti_frontend_error_template_json)
+        f.seek(0)
+        yield f.name

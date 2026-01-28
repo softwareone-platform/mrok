@@ -102,7 +102,7 @@ async def test_register_instance(mocker: MockerFixture, settings_factory: Settin
         MROK_SERVICE_TAG_NAME: "ext-1234-5678",
         "account": "ACC-1234",
     }
-    assert identity_json["mrok"]["domain"] == settings.proxy.domain
+    assert identity_json["mrok"]["domain"] == settings.frontend.domain
     assert identity_json["mrok"]["extension"] == "ext-1234-5678"
     assert identity_json["mrok"]["instance"] == "ins-1234-5678-0001"
 

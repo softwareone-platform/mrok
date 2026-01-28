@@ -71,8 +71,8 @@ async def test_bootstrap(mocker: MockerFixture, settings_factory: SettingsFactor
     mocked_bootstrap_identity.assert_awaited_once_with(
         mocked_api,
         mocked_cl_api,
-        settings.proxy.identity,
-        settings.proxy.mode,
+        settings.frontend.identity,
+        settings.frontend.mode,
         False,
         None,
     )
