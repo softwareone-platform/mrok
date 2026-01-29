@@ -14,7 +14,9 @@ DEFAULT_SETTINGS = {
     "ZITI": {
         "ssl_verify": False,
     },
-    "PAGINATION": {"limit": 50},
+    "CONTROLLER": {
+        "pagination": {"limit": 50},
+    },
     "IDENTIFIERS": {
         "extension": {
             "regex": "(?i)EXT-\\d{4}-\\d{4}",

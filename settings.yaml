@@ -12,7 +12,7 @@ frontend:
 
 
 ziti:
-  api:
+  base_urls:
     client: https://localhost:1280
     management: https://localhost:1280
   read_timeout: 30
@@ -27,12 +27,15 @@ logging:
   debug: True
   rich: True
 
-auth:
-  backends:
-    - oidc
-  oidc:
-    openid_config_url: https://example.com/openid-configuration
-    audience: my-audience
+controller:
+  auth:
+    backends:
+      - oidc
+    oidc:
+      openid_config_url: https://example.com/openid-configuration
+      audience: my-audience
+  pagination:
+    limit: 50
 
 identifiers:
   extension:
@@ -44,5 +47,3 @@ identifiers:
     regex: '(?i)INS-\d{4}-\d{4}-\d{4}'
     format: 'INS-xxxx-yyyy-CIAO'
     example: 'INS-2004-2000-3000'
-pagination:
-  limit: 50

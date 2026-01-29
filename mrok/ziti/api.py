@@ -38,7 +38,7 @@ class ZitiBadRequestError(ZitiAPIError):
 class BaseZitiAPI(ABC):
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.limit = self.settings.pagination.limit
+        self.limit = self.settings.controller.pagination.limit
         self.token = None
 
     @property
@@ -263,7 +263,7 @@ class ZitiIdentityAuth(BaseZitiAuth):
 class ZitiManagementAPI(BaseZitiAPI):
     @property
     def base_url(self):
-        return f"{self.settings.ziti.api.management}/edge/management/v1"
+        return f"{self.settings.ziti.base_urls.management}/edge/management/v1"
 
     def services(
         self,
@@ -465,7 +465,7 @@ class ZitiManagementAPI(BaseZitiAPI):
 class ZitiClientAPI(BaseZitiAPI):
     @property
     def base_url(self):
-        return f"{self.settings.ziti.api.client}/edge/client/v1"
+        return f"{self.settings.ziti.base_urls.client}/edge/client/v1"
 
     async def enroll_identity(self, jti: str, csr_pem: str) -> dict[str, Any]:
         response = await self.httpx_client.post(

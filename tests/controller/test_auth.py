@@ -49,7 +49,7 @@ async def test_invalid_openid_config_url(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.openid_config_url,
         status_code=404,
     )
     async with AsyncClient(
@@ -71,7 +71,7 @@ async def test_invalid_openid_config_data(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.openid_config_url,
         json={},
     )
     async with AsyncClient(
@@ -94,7 +94,7 @@ async def test_invalid_jwks_url(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.openid_config_url,
         json=openid_config,
     )
     httpx_mock.add_response(
@@ -122,7 +122,7 @@ async def test_invalid_jwks_data(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.openid_config_url,
         json=openid_config,
     )
     httpx_mock.add_response(method="GET", url=openid_config["jwks_uri"], status_code=200, json={})
@@ -146,7 +146,7 @@ async def test_jwks_key_not_found(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.openid_config_url,
         json=openid_config,
     )
     httpx_mock.add_response(
