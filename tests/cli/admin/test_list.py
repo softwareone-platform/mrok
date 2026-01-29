@@ -85,7 +85,7 @@ def test_list_extensions_command_with_tag(
 @pytest.mark.asyncio
 async def test_list_extensions(settings_factory: SettingsFactory, httpx_mock: HTTPXMock):
     settings = settings_factory()
-    url = f"{settings.ziti.api.management}/edge/management/v1/services"
+    url = f"{settings.ziti.base_urls.management}/edge/management/v1/services"
 
     httpx_mock.add_response(
         method="GET",
@@ -125,7 +125,7 @@ async def test_list_extensions(settings_factory: SettingsFactory, httpx_mock: HT
 @pytest.mark.asyncio
 async def test_list_extensions_with_tag(settings_factory: SettingsFactory, httpx_mock: HTTPXMock):
     settings = settings_factory()
-    url = f"{settings.ziti.api.management}/edge/management/v1/services"
+    url = f"{settings.ziti.base_urls.management}/edge/management/v1/services"
 
     httpx_mock.add_response(
         method="GET",
@@ -219,7 +219,7 @@ async def test_list_instances_with_extension_filter(
 ):
     settings = settings_factory()
     tag_filter = f'tags.{MROK_IDENTITY_TYPE_TAG_NAME}="{MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE}"'
-    url = f"{settings.ziti.api.management}/edge/management/v1/identities"
+    url = f"{settings.ziti.base_urls.management}/edge/management/v1/identities"
 
     httpx_mock.add_response(
         method="GET",
@@ -263,7 +263,7 @@ async def test_list_instances_with_online_only_filter(
 ):
     settings = settings_factory()
     tag_filter = f'tags.{MROK_IDENTITY_TYPE_TAG_NAME}="{MROK_IDENTITY_TYPE_TAG_VALUE_INSTANCE}"'
-    url = f"{settings.ziti.api.management}/edge/management/v1/identities"
+    url = f"{settings.ziti.base_urls.management}/edge/management/v1/identities"
 
     httpx_mock.add_response(
         method="GET",

@@ -37,7 +37,7 @@ def setup_custom_serialization(router: APIRouter):
 
 
 def setup_app(settings: Settings):
-    auth_manager = HTTPAuthManager(settings.auth)
+    auth_manager = HTTPAuthManager(settings.controller.auth)
     app = FastAPI(
         title="mrok Controller API",
         description="API to orchestrate OpenZiti for Extensions.",

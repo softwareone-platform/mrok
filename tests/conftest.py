@@ -25,12 +25,11 @@ def settings_factory() -> SettingsFactory:
     def _get_settings(
         ziti: dict | None = None,
         logging: dict | None = None,
-        pagination: dict | None = None,
         frontend: dict | None = None,
-        auth: dict | None = None,
+        controller: dict | None = None,
     ) -> Settings:
         ziti = ziti or {
-            "api": {
+            "base_urls": {
                 "management": "https://ziti.example.com",
                 "client": "https://ziti.example.com",
             },
@@ -43,14 +42,18 @@ def settings_factory() -> SettingsFactory:
             "debug": True,
             "rich": False,
         }
-        pagination = pagination or {"limit": 5}
-        auth = auth or {
-            "backends": ["oidc"],
-            "oidc": {
-                "openid_config_url": "http://example.com/openid-configuration",
-                "audience": "mrok-audience",
-            },
-        }
+
+        controller = controller or {}
+        if "auth" not in controller:
+            controller["auth"] = {
+                "backends": ["oidc"],
+                "oidc": {
+                    "openid_config_url": "http://example.com/openid-configuration",
+                    "audience": "mrok-audience",
+                },
+            }
+        if "pagination" not in controller:
+            controller["pagination"] = {"limit": 5}
         frontend = frontend or {
             "identity": "public",
             "mode": "zrok",
@@ -62,9 +65,8 @@ def settings_factory() -> SettingsFactory:
             ENV_FOR_DYNACONF="testing",
             ZITI=ziti,
             LOGGING=logging,
-            PAGINATION=pagination,
             FRONTEND=frontend,
-            AUTH=auth,
+            CONTROLLER=controller,
         )
 
         return settings
@@ -221,7 +223,7 @@ async def api_client(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.openid_config_url,
         json=openid_config,
         is_reusable=True,
     )
