@@ -7,6 +7,7 @@ from uvicorn_worker import UvicornWorker
 
 from mrok.conf import get_settings
 from mrok.frontend.app import FrontendProxyApp
+from mrok.frontend.middleware import HealthCheckMiddleware
 from mrok.logging import get_logging_config
 
 
@@ -42,11 +43,13 @@ def run(
     max_keepalive_connections: int | None,
     keepalive_expiry: float | None,
 ):
-    app = FrontendProxyApp(
-        str(identity_file),
-        max_connections=max_connections,
-        max_keepalive_connections=max_keepalive_connections,
-        keepalive_expiry=keepalive_expiry,
+    app = HealthCheckMiddleware(
+        FrontendProxyApp(
+            str(identity_file),
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+            keepalive_expiry=keepalive_expiry,
+        )
     )
 
     options = {

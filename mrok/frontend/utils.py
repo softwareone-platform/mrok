@@ -1,3 +1,8 @@
+import re
+
+from mrok.conf import get_settings
+
+
 def parse_accept_header(accept: str | None) -> list[str]:
     if not accept:
         return ["*/*"]
@@ -43,3 +48,36 @@ def _media_type_specificity(media_type: str) -> int:
     if media_type.endswith("/*"):
         return 1
     return 2
+
+
+def get_frontend_domain():
+    settings = get_settings()
+    return (
+        settings.frontend.domain
+        if settings.frontend.domain[0] == "."
+        else f".{settings.frontend.domain}"
+    )
+
+
+def _get_target_from_header(headers: dict[str, str], name: str) -> str | None:
+    domain_name = get_frontend_domain()
+    header_value = headers.get(name, "")
+    if domain_name in header_value:
+        if ":" in header_value:
+            header_value, _ = header_value.split(":", 1)
+        return header_value[: -len(domain_name)]
+
+
+def get_target_name(headers: dict[str, str]) -> str | None:
+    settings = get_settings()
+
+    target = _get_target_from_header(headers, "x-forwarded-host")
+    if not target:
+        target = _get_target_from_header(headers, "host")
+
+    if target and (
+        re.fullmatch(settings.identifiers.extension.regex, target)
+        or re.fullmatch(settings.identifiers.instance.regex, target)
+    ):
+        return target
+    return None

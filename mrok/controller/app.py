@@ -50,7 +50,10 @@ def setup_app(settings: Settings):
 
     setup_custom_serialization(extensions_router)
 
-    # TODO: Add healthcheck
+    @app.get("/healthcheck")
+    async def healthcheck():
+        return {"status": "healthy"}
+
     app.include_router(
         extensions_router,
         prefix="/extensions",

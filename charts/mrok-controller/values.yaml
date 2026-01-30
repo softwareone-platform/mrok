@@ -1,0 +1,13 @@
+image:
+  repository: <registry>/<org>/<image>
+  tag: <image-tag>
+frontendDomain: <frontend-domain>
+zitiBaseUrlsClient: https://<ziti-client-api-host>
+zitiBaseUrlsManagement: https://<ziti-mgmt-api-host>
+zitiAuthUsername: admin
+zitiAuthPassword: "<ziti-admin-password>"
+loggingDebug: "false"
+loggingRich: "false"
+controllerAuthBackends: "['oidc']"
+controllerAuthOIDCConfigUrl: "https://<openid-config-host>/<openid-config-path>"
+controllerAuthOIDCAudience: "http://<auth-audience-host>"
