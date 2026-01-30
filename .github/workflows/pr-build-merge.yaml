@@ -62,10 +62,41 @@ jobs:
           path: snapshot_report.html
           if-no-files-found: warn
 
+  helm-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint mrok-controller
+        run: |
+          helm lint charts/mrok-controller
+
+      - name: Render mrok-controller
+        run: |
+          helm template test charts/mrok-controller \
+            --values charts/mrok-controller/values.yaml \
+            > /dev/null
+
+      - name: Lint mrok-frontend
+        run: |
+          helm lint charts/mrok-frontend
+
+      - name: Render mrok-frontend
+        run: |
+          helm template test charts/mrok-frontend \
+            --values charts/mrok-frontend/values.yaml \
+            > /dev/null
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: test
+    needs:
+      - test
+      - helm-checks
 
     steps:
       - uses: actions/checkout@v4

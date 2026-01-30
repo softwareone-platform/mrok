@@ -56,6 +56,52 @@ jobs:
     - name: Docker image digest
       run: echo ${{ steps.docker_build.outputs.digest }}
 
+
+  helm-charts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [ set-version ]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: 'Get the version'
+      id: get_version
+      run: echo  "VERSION=${GITHUB_REF/refs\/tags\//}" >> "$GITHUB_OUTPUT"
+
+    - name: Install yq (snap)
+      run: |
+        sudo snap install yq
+
+    - name: Patch Helm chart versions
+      run: |
+        for chart in charts/mrok-controller charts/mrok-frontend; do
+          yq e -i ".version = \"${{ steps.get_version.outputs.VERSION }}\"" "$chart/Chart.yaml"
+          yq e -i ".appVersion = \"${{ steps.get_version.outputs.VERSION }}\"" "$chart/Chart.yaml"
+        done
+
+    - name: Package Helm charts
+      run: |
+        helm package charts/mrok-controller
+        helm package charts/mrok-frontend
+
+    - name: Helm registry login
+      run:
+        echo ${{ secrets.REGISTRY_PASSWORD }} | helm registry login ${{ vars.REGISTRY_LOGIN_SERVER }} \
+          --username ${{ vars.REGISTRY_USERNAME }} \
+          --password-stdin
+
+    - name: Push Helm charts to ACR (OCI)
+      run: |
+        helm push mrok-controller-${{ steps.get_version.outputs.VERSION }}.tgz \
+          oci://${{ vars.REGISTRY_LOGIN_SERVER }}/gha/helm
+
+        helm push mrok-frontend-${{ steps.get_version.outputs.VERSION }}.tgz \
+          oci://${{ vars.REGISTRY_LOGIN_SERVER }}/gha/helm
+
+
   dtrack:
     uses: softwareone-platform/ops-template/.github/workflows/dependency-track-python-uv.yml@v1
     with:

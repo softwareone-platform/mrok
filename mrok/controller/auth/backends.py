@@ -19,7 +19,7 @@ class OIDCJWTAuthenticationBackend(BaseHTTPAuthBackend):
     async def authenticate(self, credentials: HTTPAuthorizationCredentials) -> AuthIdentity | None:
         async with httpx.AsyncClient() as client:
             try:
-                config_resp = await client.get(self.config.openid_config_url)
+                config_resp = await client.get(self.config.config_url)
                 config_resp.raise_for_status()
                 config = config_resp.json()
                 issuer = config["issuer"]

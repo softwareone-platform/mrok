@@ -32,7 +32,7 @@ controller:
     backends:
       - oidc
     oidc:
-      openid_config_url: https://example.com/openid-configuration
+      config_url: https://example.com/openid-configuration
       audience: my-audience
   pagination:
     limit: 50

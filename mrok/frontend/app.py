@@ -1,4 +1,3 @@
-import re
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -7,13 +6,11 @@ from httpcore import AsyncConnectionPool
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from mrok.conf import get_settings
-from mrok.frontend.utils import parse_accept_header
+from mrok.frontend.utils import get_target_name, parse_accept_header
 from mrok.proxy.app import ProxyAppBase
 from mrok.proxy.backend import AIOZitiNetworkBackend
 from mrok.proxy.exceptions import InvalidTargetError
 from mrok.types.proxy import ASGISend, Scope
-
-RE_SUBDOMAIN = re.compile(r"(?i)^(?:EXT-\d{4}-\d{4}|INS-\d{4}-\d{4}-\d{4})$")
 
 ERROR_TEMPLATE_FORMATS = {
     "application/json": "json",
@@ -29,12 +26,11 @@ class FrontendProxyApp(ProxyAppBase):
         max_connections: int | None = 10,
         max_keepalive_connections: int | None = None,
         keepalive_expiry: float | None = None,
-        retries=0,
+        retries: int = 0,
     ):
         self._identity_file = identity_file
-        self._settings = get_settings()
-        self._proxy_domain = self._get_proxy_domain()
         self._jinja_env_cache: dict[Path, Environment] = {}
+        self._templates_by_error = get_settings().frontend.get("errors", {})
         super().__init__(
             max_connections=max_connections,
             max_keepalive_connections=max_keepalive_connections,
@@ -58,9 +54,12 @@ class FrontendProxyApp(ProxyAppBase):
         )
 
     def get_upstream_base_url(self, scope: Scope) -> str:
-        target = self._get_target_name(
+        target = get_target_name(
             {k.decode("latin1"): v.decode("latin1") for k, v in scope.get("headers", {})}
         )
+        if not target:
+            raise InvalidTargetError()
+
         return f"http://{target.lower()}"
 
     async def send_error_response(
@@ -75,11 +74,10 @@ class FrontendProxyApp(ProxyAppBase):
             k.decode("latin1"): v.decode("latin1") for k, v in scope.get("headers", {})
         }
         accept_header = request_headers.get("accept")
-        errors = self._settings.frontend.get("errors", {})
-        if not (accept_header and str(http_status) in errors):
+        if not (accept_header and str(http_status) in self._templates_by_error):
             return await super().send_error_response(scope, send, http_status, body)
 
-        available_templates = errors[str(http_status)]
+        available_templates = self._templates_by_error[str(http_status)]
 
         media_types = parse_accept_header(accept_header)
         for media_type in media_types:
@@ -98,28 +96,6 @@ class FrontendProxyApp(ProxyAppBase):
                 )
 
         return await super().send_error_response(scope, send, http_status, body)
-
-    def _get_proxy_domain(self):
-        return (
-            self._settings.frontend.domain
-            if self._settings.frontend.domain[0] == "."
-            else f".{self._settings.frontend.domain}"
-        )
-
-    def _get_target_from_header(self, headers: dict[str, str], name: str) -> str | None:
-        header_value = headers.get(name, "")
-        if self._proxy_domain in header_value:
-            if ":" in header_value:
-                header_value, _ = header_value.split(":", 1)
-            return header_value[: -len(self._proxy_domain)]
-
-    def _get_target_name(self, headers: dict[str, str]) -> str:
-        target = self._get_target_from_header(headers, "x-forwarded-host")
-        if not target:
-            target = self._get_target_from_header(headers, "host")
-        if not target or not RE_SUBDOMAIN.fullmatch(target):
-            raise InvalidTargetError()
-        return target
 
     async def _render_error_template(
         self, template_path: Path, scope: Scope, http_status: int, body: str

@@ -1,0 +1,7 @@
+image:
+  repository: <registry>/<org>/<image>
+  tag: <image-tag>
+frontendDomain: <frontend-domain>
+loggingDebug: "false"
+loggingRich: "false"
+identityJson: <identity-json-file>
