@@ -60,7 +60,7 @@ def test_get_upstream_base_url(
     header: tuple[bytes, bytes],
     expected: str,
 ):
-    mocker.patch.object(FrontendProxyApp, "_get_proxy_domain", return_value=".extdomain")
+    mocker.patch("mrok.frontend.utils.get_frontend_domain", return_value=".extdomain")
 
     app = FrontendProxyApp("my-identity")
     assert app.get_upstream_base_url({"headers": [header]}) == f"http://{expected}"
@@ -85,7 +85,7 @@ def test_get_upstream_base_url_invalid_target(
     mocker: MockerFixture,
     header: tuple[bytes, bytes],
 ):
-    mocker.patch.object(FrontendProxyApp, "_get_proxy_domain", return_value=".extdomain")
+    mocker.patch("mrok.frontend.utils.get_frontend_domain", return_value=".extdomain")
 
     app = FrontendProxyApp("my-identity")
     with pytest.raises(InvalidTargetError):

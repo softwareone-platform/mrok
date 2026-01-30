@@ -8,7 +8,8 @@ RUN apt-get clean -y; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
-RUN curl -sSf https://get.openziti.io/install.bash | bash -s openziti-controller openziti-router zrok
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
+
 # Run the uv installer then remove it
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 

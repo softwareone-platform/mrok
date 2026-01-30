@@ -1,6 +1,12 @@
+import logging
 import logging.config
 
 from mrok.conf import Settings
+
+
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record):
+        return "/healthcheck" not in record.getMessage()
 
 
 def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
@@ -25,6 +31,11 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "style": "{",
             },
             "plain": {"format": "%(message)s"},
+        },
+        "filters": {
+            "healthcheck_filter": {
+                "()": HealthCheckFilter,
+            }
         },
         "handlers": {
             "console": {
@@ -54,16 +65,29 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "handlers": [handler],
                 "level": log_level,
                 "propagate": False,
+                "filters": ["healthcheck_filter"],
             },
             "gunicorn.error": {
                 "handlers": [handler],
                 "level": log_level,
                 "propagate": False,
             },
+            "uvicorn.access": {
+                "handlers": [handler],
+                "level": log_level,
+                "propagate": False,
+                "filters": ["healthcheck_filter"],
+            },
             "mrok": {
                 "handlers": [mrok_handler],
                 "level": log_level,
                 "propagate": False,
+            },
+            "mrok.access": {
+                "handlers": [mrok_handler],
+                "level": log_level,
+                "propagate": False,
+                "filters": ["healthcheck_filter"],
             },
         },
     }
