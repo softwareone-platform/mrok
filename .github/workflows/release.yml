@@ -88,8 +88,8 @@ jobs:
         helm package charts/mrok-frontend
 
     - name: Helm registry login
-      run:
-        echo ${{ secrets.REGISTRY_PASSWORD }} | helm registry login ${{ vars.REGISTRY_LOGIN_SERVER }} \
+      run: |
+        echo "${{ secrets.REGISTRY_PASSWORD }}" | helm registry login ${{ vars.REGISTRY_LOGIN_SERVER }} \
           --username ${{ vars.REGISTRY_USERNAME }} \
           --password-stdin
 
