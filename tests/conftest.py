@@ -48,7 +48,7 @@ def settings_factory() -> SettingsFactory:
             controller["auth"] = {
                 "backends": ["oidc"],
                 "oidc": {
-                    "openid_config_url": "http://example.com/openid-configuration",
+                    "config_url": "http://example.com/openid-configuration",
                     "audience": "mrok-audience",
                 },
             }
@@ -223,7 +223,7 @@ async def api_client(
     settings = settings_factory()
     httpx_mock.add_response(
         method="GET",
-        url=settings.controller.auth.oidc.openid_config_url,
+        url=settings.controller.auth.oidc.config_url,
         json=openid_config,
         is_reusable=True,
     )
