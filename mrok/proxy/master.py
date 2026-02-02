@@ -158,6 +158,7 @@ class MasterBase(ABC):
         self.start_events_router()
         self.start_workers()
         self.monitor_thread.start()
+        self.pause_event.set()
 
     def stop_events_router(self):
         self.zmq_pubsub_router_process.stop(sigint_timeout=5, sigkill_timeout=1)
@@ -169,16 +170,17 @@ class MasterBase(ABC):
         self.worker_processes.clear()
 
     def stop(self):
+        self.pause_event.clear()
         if self.monitor_thread.is_alive():  # pragma: no branch
             self.monitor_thread.join(timeout=MONITOR_THREAD_JOIN_TIMEOUT)
         self.stop_workers()
         self.stop_events_router()
 
     def restart(self):
-        self.pause_event.set()
+        self.pause_event.clear()
         self.stop_workers()
         self.start_workers()
-        self.pause_event.clear()
+        self.pause_event.set()
 
     def monitor_workers(self):
         while not self.stop_event.is_set():
