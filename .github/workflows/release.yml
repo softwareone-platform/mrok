@@ -89,7 +89,7 @@ jobs:
 
     - name: Helm registry login
       run:
-        echo ${{ secrets.REGISTRY_PASSWORD }} | helm registry login ${{ vars.REGISTRY_LOGIN_SERVER }} \
+        echo "${{ secrets.REGISTRY_PASSWORD }}" | helm registry login ${{ vars.REGISTRY_LOGIN_SERVER }} \
           --username ${{ vars.REGISTRY_USERNAME }} \
           --password-stdin
 
