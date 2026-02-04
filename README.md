@@ -2,6 +2,10 @@
 
 # mrok
 
+![mrok logo](assets/logo.svg)
+
+
+
 **mrok** provides the communication channel that allows the Marketplace Platform Extensions to securely expose their web applications to the platform without requiring inbound connectivity.
 It uses the [OpenZiti](https://openziti.io) zero-trust network overlay to create encrypted tunnels initiated from the Extension side, enabling operation even behind corporate firewalls.
 
