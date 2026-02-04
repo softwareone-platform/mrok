@@ -8,6 +8,6 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
 data:
-  MROK_FRONTEND__DOMAIN: {{ .Values.proxyDomain | quote }}
+  MROK_FRONTEND__DOMAIN: {{ .Values.frontendDomain | quote }}
   MROK_LOGGING__DEBUG: {{ .Values.loggingDebug | quote }}
   MROK_LOGGING__RICH: {{ .Values.loggingRich | quote }}
