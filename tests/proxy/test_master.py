@@ -70,6 +70,11 @@ def test_start_uvicorn_worker_hook(
         events_enabled=False,
         event_publisher_port=2233,
         metrics_interval=24.0,
+        ziti_load_timeout_ms=5000,
+        backlog=2048,
+        timeout_keep_alive=5,
+        limit_concurrency=None,
+        limit_max_requests=None,
     )
     m_worker.run.assert_called_once()
 
@@ -152,9 +157,15 @@ def test_start_worker(mocker: MockerFixture):
             "my-identity.json",
             True,
             50000,
-            10,
         ),
-        None,
+        {
+            "ziti_load_timeout_ms": 5000,
+            "backlog": 2048,
+            "timeout_keep_alive": 5,
+            "limit_concurrency": None,
+            "limit_max_requests": None,
+            "metrics_interval": 10,
+        },
     )
 
 

@@ -20,6 +20,11 @@ class SidecarAgent(MasterBase):
         retries: int = 0,
         publishers_port: int = 50000,
         subscribers_port: int = 50001,
+        ziti_load_timeout_ms: int = 5000,
+        backlog: int = 2048,
+        timeout_keep_alive: int = 5,
+        limit_concurrency: int = None,
+        limit_max_requests: int = None,
     ):
         super().__init__(
             identity_file,
@@ -28,6 +33,11 @@ class SidecarAgent(MasterBase):
             events_enabled=events_enabled,
             events_pub_port=publishers_port,
             events_sub_port=subscribers_port,
+            ziti_load_timeout_ms=ziti_load_timeout_ms,
+            backlog=backlog,
+            timeout_keep_alive=timeout_keep_alive,
+            limit_concurrency=limit_concurrency,
+            limit_max_requests=limit_max_requests,
         )
         self._target = target
         self._max_connections = max_connections
@@ -56,6 +66,11 @@ def run(
     retries: int = 0,
     publishers_port: int = 50000,
     subscribers_port: int = 50001,
+    ziti_load_timeout_ms: int = 5000,
+    backlog: int = 2048,
+    timeout_keep_alive: int = 5,
+    limit_concurrency: int | None = None,
+    limit_max_requests: int | None = None,
 ):
     agent = SidecarAgent(
         identity_file,
@@ -68,5 +83,10 @@ def run(
         retries=retries,
         publishers_port=publishers_port,
         subscribers_port=subscribers_port,
+        ziti_load_timeout_ms=ziti_load_timeout_ms,
+        backlog=backlog,
+        timeout_keep_alive=timeout_keep_alive,
+        limit_concurrency=limit_concurrency,
+        limit_max_requests=limit_max_requests,
     )
     agent.run()

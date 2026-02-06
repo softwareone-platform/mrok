@@ -46,6 +46,9 @@ class BackendConfig(config.Config):
         identity_file: str | Path,
         ziti_load_timeout_ms: int = 5000,
         backlog: int = 2048,
+        timeout_keep_alive: int = 5,
+        limit_concurrency: int | None = None,
+        limit_max_requests: int | None = None,
     ):
         self.identity_file = identity_file
         self.identity = Identity.load_from_file(self.identity_file)
@@ -55,6 +58,9 @@ class BackendConfig(config.Config):
             loop="asyncio",
             http=HttpToolsProtocol,
             backlog=backlog,
+            timeout_keep_alive=timeout_keep_alive,
+            limit_concurrency=limit_concurrency,
+            limit_max_requests=limit_max_requests,
         )
 
     def bind_socket(self) -> socket.socket:

@@ -56,6 +56,46 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = 50001,
+        ziti_load_timeout_ms: Annotated[
+            int,
+            typer.Option(
+                "--ziti-load-timeout-ms",
+                help="Timeout (ms) waiting for Ziti to load.",
+                show_default=True,
+            ),
+        ] = 5000,
+        backlog: Annotated[
+            int,
+            typer.Option(
+                "--backlog",
+                help="TCP socket listen backlog.",
+                show_default=True,
+            ),
+        ] = 2048,
+        timeout_keep_alive: Annotated[
+            int,
+            typer.Option(
+                "--timeout-keep-alive",
+                help="Seconds to keep idle HTTP connections open.",
+                show_default=True,
+            ),
+        ] = 5,
+        limit_concurrency: Annotated[
+            int,
+            typer.Option(
+                "--limit-concurrency",
+                help="Maximum number of concurrent requests per worker.",
+                show_default=True,
+            ),
+        ] = None,
+        limit_max_requests: Annotated[
+            int,
+            typer.Option(
+                "--limit-max-requests",
+                help="Restart a worker after handling this many requests.",
+                show_default=True,
+            ),
+        ] = 5000,
     ):
         """Run an ASGI application exposing it through OpenZiti network."""
         ziticorn.run(
@@ -65,4 +105,9 @@ def register(app: typer.Typer) -> None:
             reload=reload,
             publishers_port=publishers_port,
             subscribers_port=subscribers_port,
+            ziti_load_timeout_ms=ziti_load_timeout_ms,
+            backlog=backlog,
+            timeout_keep_alive=timeout_keep_alive,
+            limit_concurrency=limit_concurrency,
+            limit_max_requests=limit_max_requests,
         )

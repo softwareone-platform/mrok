@@ -32,3 +32,4 @@ def register(app: typer.Typer) -> None:
     ):
         """Register a new Extension Instance in OpenZiti (identity)."""
         asyncio.run(do_unregister(ctx.obj, extension_id, instance_id))
+        print(f"🍻 [green]Instance [bold]{instance_id}[/bold] unregistered.[/green]")

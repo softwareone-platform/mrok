@@ -40,5 +40,10 @@ def test_run(mocker: MockerFixture):
         reload=True,
         publishers_port=4000,
         subscribers_port=5000,
+        backlog=2048,
+        limit_concurrency=None,
+        limit_max_requests=None,
+        timeout_keep_alive=5,
+        ziti_load_timeout_ms=5000,
     )
     mocked_agent.run.assert_called_once()
