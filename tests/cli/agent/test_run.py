@@ -16,16 +16,26 @@ def test_run_asgi(
     # Run the command
     result = runner.invoke(
         app,
-        shlex.split("agent run asgi my:app ins-1234-5678-0001.json -w 2 --reload -p 4000 -s 5000"),
+        shlex.split(
+            "agent run asgi my:app ins-1234-5678-0001.json -w 2 --server-reload "
+            "--events-publishers-port 4000 "
+            "--events-subscribers-port 5000"
+        ),
     )
     assert result.exit_code == 0
     mocked_ziticorn.assert_called_once_with(
         "ins-1234-5678-0001.json",
         "my:app",
-        workers=2,
-        reload=True,
-        publishers_port=4000,
-        subscribers_port=5000,
+        ziti_load_timeout_ms=5000,
+        server_workers=2,
+        server_reload=True,
+        server_backlog=2048,
+        server_limit_concurrency=None,
+        server_limit_max_requests=None,
+        server_timeout_keep_alive=5,
+        events_publishers_port=4000,
+        events_subscribers_port=5000,
+        events_metrics_collect_interval=5.0,
     )
 
 
@@ -50,10 +60,11 @@ def test_run_sidecar(
         app,
         shlex.split(
             f"agent run sidecar ins-1234-5678-0001.json {target_addr} "
-            "-w 2 -p 4000 -s 5000 --max-pool-connections 312 "
-            "--max-pool-keepalive-connections 11 "
-            "--max-pool-keepalive-expiry 3.22 "
-            "--max-pool-connect-retries 2"
+            "-w 2 --events-publishers-port 4000 --events-subscribers-port 5000 "
+            "--upstream-max-connections 312 "
+            "--upstream-max-keepalive-connections 11 "
+            "--upstream_keepalive_expiry 3.22 "
+            "--upstream-max-connect-retries 2"
         ),
     )
     assert result.exit_code == 0
@@ -61,11 +72,17 @@ def test_run_sidecar(
         "ins-1234-5678-0001.json",
         expected_target_addr,
         events_enabled=True,
-        workers=2,
-        max_connections=312,
-        max_keepalive_connections=11,
-        keepalive_expiry=3.22,
-        retries=2,
-        publishers_port=4000,
-        subscribers_port=5000,
+        server_workers=2,
+        upstream_max_connections=312,
+        upstream_max_keepalive_connections=11,
+        upstream_keepalive_expiry=3.22,
+        upstream_max_connect_retries=2,
+        events_publishers_port=4000,
+        events_subscribers_port=5000,
+        events_metrics_collect_interval=5.0,
+        server_backlog=2048,
+        server_limit_concurrency=None,
+        server_limit_max_requests=None,
+        server_timeout_keep_alive=5,
+        ziti_load_timeout_ms=5000,
     )

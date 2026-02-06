@@ -21,7 +21,6 @@ logger = logging.getLogger("mrok.agent")
 
 MONITOR_THREAD_JOIN_TIMEOUT = 5
 MONITOR_THREAD_CHECK_DELAY = 1
-MONITOR_THREAD_ERROR_DELAY = 3
 
 
 def print_path(path):
@@ -29,6 +28,43 @@ def print_path(path):
         return f'"{path.relative_to(Path.cwd())}"'
     except ValueError:
         return f'"{path}"'
+
+
+def start_uvicorn_worker(
+    worker_id: str,
+    app: ASGIApp | str,
+    identity_file: str,
+    *,
+    ziti_load_timeout_ms: int = 5000,
+    server_backlog: int = 2048,
+    server_timeout_keep_alive: int = 5,
+    server_limit_concurrency: int | None = None,
+    server_limit_max_requests: int | None = None,
+    events_enabled: bool = True,
+    events_pub_port: int = 5000,
+    events_metrics_collect_interval: float = 5.0,
+):
+    import sys
+
+    sys.path.insert(0, os.getcwd())
+
+    worker = Worker(
+        worker_id,
+        app,
+        identity_file,
+        ziti_load_timeout_ms=ziti_load_timeout_ms,
+        server_backlog=server_backlog,
+        server_timeout_keep_alive=server_timeout_keep_alive,
+        server_limit_concurrency=server_limit_concurrency,
+        server_limit_max_requests=server_limit_max_requests,
+        events_enabled=events_enabled,
+        events_publisher_port=events_pub_port,
+        events_metrics_collect_interval=events_metrics_collect_interval,
+    )
+    worker.run()
+
+
+MONITOR_THREAD_ERROR_DELAY = 3
 
 
 def start_events_router(events_pub_port: int, events_sub_port: int):
@@ -50,49 +86,31 @@ def start_events_router(events_pub_port: int, events_sub_port: int):
         context.term()
 
 
-def start_uvicorn_worker(
-    worker_id: str,
-    app: ASGIApp | str,
-    identity_file: str,
-    events_enabled: bool,
-    events_pub_port: int,
-    metrics_interval: float = 5.0,
-):
-    import sys
-
-    sys.path.insert(0, os.getcwd())
-
-    worker = Worker(
-        worker_id,
-        app,
-        identity_file,
-        events_enabled=events_enabled,
-        event_publisher_port=events_pub_port,
-        metrics_interval=metrics_interval,
-    )
-    worker.run()
-
-
 class MasterBase(ABC):
     def __init__(
         self,
         identity_file: str,
         *,
-        workers: int = 4,
-        reload: bool = False,
+        ziti_load_timeout_ms: int = 5000,
+        server_workers: int = 4,
+        server_reload: bool = False,
+        server_backlog: int = 2048,
+        server_timeout_keep_alive: int = 5,
+        server_limit_concurrency: int | None = None,
+        server_limit_max_requests: int | None = None,
         events_enabled: bool = True,
         events_pub_port: int = 50000,
         events_sub_port: int = 50001,
-        metrics_interval: float = 5.0,
+        events_metrics_collect_interval: float = 5.0,
     ):
         self.identity_file = identity_file
-        self.workers = workers
-        self.reload = reload
+        self.workers = server_workers
+        self.server_reload = server_reload
         self.events_enabled = events_enabled
         self.events_pub_port = events_pub_port
         self.events_sub_port = events_sub_port
-        self.metrics_interval = metrics_interval
-        self.worker_identifiers = [str(uuid4()) for _ in range(workers)]
+        self.events_metrics_collect_interval = events_metrics_collect_interval
+        self.worker_identifiers = [str(uuid4()) for _ in range(server_workers)]
         self.worker_processes: dict[str, CombinedProcess] = {}
         self.zmq_pubsub_router_process = None
         self.monitor_thread = threading.Thread(target=self.monitor_workers, daemon=True)
@@ -105,6 +123,11 @@ class MasterBase(ABC):
             stop_event=self.stop_event,
             yield_on_timeout=True,
         )
+        self.ziti_load_timeout_ms = ziti_load_timeout_ms
+        self.server_backlog = server_backlog
+        self.timeout_keep_alive = server_timeout_keep_alive
+        self.limit_concurrency = server_limit_concurrency
+        self.limit_max_requests = server_limit_max_requests
         self.setup_signals_handler()
 
     @abstractmethod
@@ -128,11 +151,17 @@ class MasterBase(ABC):
                 worker_id,
                 self.get_asgi_app(),
                 self.identity_file,
-                self.events_enabled,
-                self.events_pub_port,
-                self.metrics_interval,
             ),
-            None,
+            {
+                "ziti_load_timeout_ms": self.ziti_load_timeout_ms,
+                "server_backlog": self.server_backlog,
+                "server_timeout_keep_alive": self.timeout_keep_alive,
+                "server_limit_concurrency": self.limit_concurrency,
+                "server_limit_max_requests": self.limit_max_requests,
+                "events_enabled": self.events_enabled,
+                "events_pub_port": self.events_pub_port,
+                "events_metrics_collect_interval": self.events_metrics_collect_interval,
+            },
         )
         logger.info(f"Worker {worker_id} [{p.pid}] started")
         return p
@@ -216,7 +245,7 @@ class MasterBase(ABC):
         logger.info(f"Master process started: {os.getpid()}")
         self.start()
         try:
-            if self.reload:
+            if self.server_reload:
                 for files_changed in self:
                     if files_changed:
                         logger.warning(

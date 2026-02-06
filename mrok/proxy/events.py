@@ -14,25 +14,25 @@ from mrok.types.proxy import ASGIApp
 logger = logging.getLogger("mrok.proxy")
 
 
-class EventPublisher:
+class EventsPublisher:
     def __init__(
         self,
         worker_id: str,
         meta: ServiceMetadata | None = None,
-        event_publisher_port: int = 50000,
-        metrics_interval: float = 5.0,
+        events_publisher_port: int = 50000,
+        events_metrics_collect_interval: float = 5.0,
     ):
         self._worker_id = worker_id
         self._meta = meta
-        self._metrics_interval = metrics_interval
-        self.publisher_port = event_publisher_port
+        self._events_metrics_collect_interval = events_metrics_collect_interval
+        self._publisher_port = events_publisher_port
         self._zmq_ctx = zmq.asyncio.Context()
         self._publisher = self._zmq_ctx.socket(zmq.PUB)
         self._metrics_collector = MetricsCollector(self._worker_id)
         self._publish_task = None
 
     async def on_startup(self):
-        self._publisher.connect(f"tcp://localhost:{self.publisher_port}")
+        self._publisher.connect(f"tcp://localhost:{self._publisher_port}")
         self._publish_task = asyncio.create_task(self.publish_metrics_event())
         logger.info(f"Events publishing for worker {self._worker_id} started")
 
@@ -49,7 +49,7 @@ class EventPublisher:
             snap = await self._metrics_collector.snapshot()
             event = Event(type="status", data=Status(meta=self._meta, metrics=snap))
             await self._publisher.send_string(event.model_dump_json())
-            await asyncio.sleep(self._metrics_interval)
+            await asyncio.sleep(self._events_metrics_collect_interval)
 
     async def publish_response_event(self, response: HTTPResponse):
         event = Event(type="response", data=response)

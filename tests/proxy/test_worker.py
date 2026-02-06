@@ -35,6 +35,11 @@ def test_setup_app_events_disabled(
         "my-worker-id",
         m_app,
         ziti_identity_file,
+        server_backlog=2048,
+        server_limit_concurrency=None,
+        server_limit_max_requests=None,
+        server_timeout_keep_alive=5,
+        ziti_load_timeout_ms=5000,
         events_enabled=False,
     )
     app = worker.setup_app()
@@ -65,10 +70,23 @@ def test_run(
         "my-worker-id",
         m_app,
         ziti_identity_file,
+        ziti_load_timeout_ms=5000,
+        server_backlog=2048,
+        server_timeout_keep_alive=5,
+        server_limit_concurrency=None,
+        server_limit_max_requests=None,
     )
     worker.run()
 
     m_setup_logging.assert_called_once_with(settings)
-    m_mrokconfig_ctor.assert_called_once_with(m_app, ziti_identity_file)
+    m_mrokconfig_ctor.assert_called_once_with(
+        m_app,
+        ziti_identity_file,
+        ziti_load_timeout_ms=5000,
+        backlog=2048,
+        timeout_keep_alive=5,
+        limit_concurrency=None,
+        limit_max_requests=None,
+    )
     m_server_ctor.assert_called_once_with(m_mrokconfig)
     m_server.run.assert_called_once()
