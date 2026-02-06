@@ -57,6 +57,11 @@ def start_uvicorn_worker(
     events_enabled: bool,
     events_pub_port: int,
     metrics_interval: float = 5.0,
+    ziti_load_timeout_ms: int = 5000,
+    backlog: int = 2048,
+    timeout_keep_alive: int = 5,
+    limit_concurrency: int = None,
+    limit_max_requests: int = None,
 ):
     import sys
 
@@ -69,6 +74,11 @@ def start_uvicorn_worker(
         events_enabled=events_enabled,
         event_publisher_port=events_pub_port,
         metrics_interval=metrics_interval,
+        ziti_load_timeout_ms=ziti_load_timeout_ms,
+        backlog=backlog,
+        timeout_keep_alive=timeout_keep_alive,
+        limit_concurrency=limit_concurrency,
+        limit_max_requests=limit_max_requests,
     )
     worker.run()
 
@@ -84,6 +94,11 @@ class MasterBase(ABC):
         events_pub_port: int = 50000,
         events_sub_port: int = 50001,
         metrics_interval: float = 5.0,
+        ziti_load_timeout_ms: int = 5000,
+        backlog: int = 2048,
+        timeout_keep_alive: int = 5,
+        limit_concurrency: int | None = None,
+        limit_max_requests: int | None = None,
     ):
         self.identity_file = identity_file
         self.workers = workers
@@ -105,6 +120,11 @@ class MasterBase(ABC):
             stop_event=self.stop_event,
             yield_on_timeout=True,
         )
+        self.ziti_load_timeout_ms = ziti_load_timeout_ms
+        self.backlog = backlog
+        self.timeout_keep_alive = timeout_keep_alive
+        self.limit_concurrency = limit_concurrency
+        self.limit_max_requests = limit_max_requests
         self.setup_signals_handler()
 
     @abstractmethod
@@ -130,9 +150,15 @@ class MasterBase(ABC):
                 self.identity_file,
                 self.events_enabled,
                 self.events_pub_port,
-                self.metrics_interval,
             ),
-            None,
+            {
+                "ziti_load_timeout_ms": self.ziti_load_timeout_ms,
+                "backlog": self.backlog,
+                "timeout_keep_alive": self.timeout_keep_alive,
+                "limit_concurrency": self.limit_concurrency,
+                "limit_max_requests": self.limit_max_requests,
+                "metrics_interval": self.metrics_interval,
+            },
         )
         logger.info(f"Worker {worker_id} [{p.pid}] started")
         return p

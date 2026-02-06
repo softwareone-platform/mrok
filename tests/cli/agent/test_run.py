@@ -26,6 +26,11 @@ def test_run_asgi(
         reload=True,
         publishers_port=4000,
         subscribers_port=5000,
+        backlog=2048,
+        limit_concurrency=None,
+        limit_max_requests=5000,
+        timeout_keep_alive=5,
+        ziti_load_timeout_ms=5000,
     )
 
 
@@ -68,4 +73,9 @@ def test_run_sidecar(
         retries=2,
         publishers_port=4000,
         subscribers_port=5000,
+        backlog=2048,
+        limit_concurrency=None,
+        limit_max_requests=5000,
+        timeout_keep_alive=5,
+        ziti_load_timeout_ms=5000,
     )
