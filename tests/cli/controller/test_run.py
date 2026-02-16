@@ -44,7 +44,17 @@ def test_run_with_options(mocker: MockerFixture):
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["controller", "run", "--host", "0.0.0.0", "--port", "8080", "--workers", "2", "--reload"],
+        [
+            "controller",
+            "run",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--workers",
+            "2",
+            "--server_reload",
+        ],
     )
     assert result.exit_code == 0
     mocked_standalone_app.assert_called_once_with(

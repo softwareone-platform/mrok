@@ -59,17 +59,22 @@ def test_start_uvicorn_worker_hook(
         "my-wk-id",
         m_app,
         "my-id-file.json",
-        False,
-        2233,
-        24.0,
+        events_enabled=False,
+        events_pub_port=2233,
+        events_metrics_collect_interval=24.0,
     )
     m_worker_ctor.assert_called_once_with(
         "my-wk-id",
         m_app,
         "my-id-file.json",
         events_enabled=False,
-        event_publisher_port=2233,
-        metrics_interval=24.0,
+        events_publisher_port=2233,
+        events_metrics_collect_interval=24.0,
+        ziti_load_timeout_ms=5000,
+        server_backlog=2048,
+        server_timeout_keep_alive=5,
+        server_limit_concurrency=None,
+        server_limit_max_requests=None,
     )
     m_worker.run.assert_called_once()
 
@@ -83,20 +88,20 @@ def test_init(mocker: MockerFixture):
 
     master = Master(
         "my-identity.json",
-        workers=3,
-        reload=True,
+        server_workers=3,
+        server_reload=True,
         events_enabled=False,
         events_pub_port=50000,
         events_sub_port=51000,
-        metrics_interval=7.0,
+        events_metrics_collect_interval=7.0,
     )
     assert master.identity_file == "my-identity.json"
     assert master.workers == 3
-    assert master.reload is True
+    assert master.server_reload is True
     assert master.events_enabled is False
     assert master.events_pub_port == 50000
     assert master.events_sub_port == 51000
-    assert master.metrics_interval == 7.0
+    assert master.events_metrics_collect_interval == 7.0
     mocked_setup_signals.assert_called_once()
 
 
@@ -135,12 +140,12 @@ def test_start_worker(mocker: MockerFixture):
 
     master = Master(
         "my-identity.json",
-        workers=3,
-        reload=False,
+        server_workers=3,
+        server_reload=False,
         events_enabled=True,
         events_pub_port=50000,
         events_sub_port=51000,
-        metrics_interval=10,
+        events_metrics_collect_interval=10,
     )
     assert master.start_worker("my-worker-id") == m_proc
     mocked_start_process.assert_called_once_with(
@@ -150,11 +155,17 @@ def test_start_worker(mocker: MockerFixture):
             "my-worker-id",
             m_asgi_app,
             "my-identity.json",
-            True,
-            50000,
-            10,
         ),
-        None,
+        {
+            "ziti_load_timeout_ms": 5000,
+            "server_backlog": 2048,
+            "server_timeout_keep_alive": 5,
+            "server_limit_concurrency": None,
+            "server_limit_max_requests": None,
+            "events_metrics_collect_interval": 10,
+            "events_enabled": True,
+            "events_pub_port": 50000,
+        },
     )
 
 
@@ -192,7 +203,7 @@ def test_start_workers(mocker: MockerFixture):
 
     mocked_start_worker = mocker.patch.object(Master, "start_worker", side_effect=[w0, w1, w2])
 
-    master = Master("my-identity.json", workers=3)
+    master = Master("my-identity.json", server_workers=3)
     master.start_workers()
     assert master.worker_processes[master.worker_identifiers[0]] == w0
     assert master.worker_processes[master.worker_identifiers[1]] == w1
@@ -335,7 +346,7 @@ def test_run_with_reload(mocker: MockerFixture):
         yield {(Change.modified, "/file1.py")}
         yield None
 
-    master = Master("my-identity.json", reload=True)
+    master = Master("my-identity.json", server_reload=True)
     master.watcher = watcher()
     master.run()
 

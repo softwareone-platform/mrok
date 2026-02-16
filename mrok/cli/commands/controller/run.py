@@ -65,9 +65,9 @@ def register(app: typer.Typer) -> None:
         dev: Annotated[
             bool,
             typer.Option(
-                "--reload",
+                "--server_reload",
                 "-r",
-                help="Enable auto-reload. Default: False",
+                help="Enable server auto-reload. Default: False",
                 show_default=True,
             ),
         ] = False,

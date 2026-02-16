@@ -5,7 +5,7 @@ import pytest
 import zmq
 from pytest_mock import MockerFixture
 
-from mrok.proxy.event_publisher import EventPublisher
+from mrok.proxy.events import EventsPublisher
 from mrok.proxy.models import (
     DataTransferMetrics,
     Event,
@@ -26,7 +26,7 @@ async def test_publish_metrics_event(
     ziti_identity_file: str,
 ):
     identity = Identity.load_from_file(ziti_identity_file)
-    event_publisher = EventPublisher(
+    event_publisher = EventsPublisher(
         worker_id="my-worker-id",
         meta=identity.mrok,
     )
@@ -77,7 +77,7 @@ async def test_publish_response_event(
     ziti_identity_file: str,
 ):
     identity = Identity.load_from_file(ziti_identity_file)
-    event_publisher = EventPublisher(
+    event_publisher = EventsPublisher(
         worker_id="my-worker-id",
         meta=identity.mrok,
     )
@@ -111,11 +111,11 @@ async def test_lifespan(
     mocker: MockerFixture,
     ziti_identity_file: str,
 ):
-    m_on_startup = mocker.patch.object(EventPublisher, "on_startup")
-    m_on_shutdown = mocker.patch.object(EventPublisher, "on_shutdown")
+    m_on_startup = mocker.patch.object(EventsPublisher, "on_startup")
+    m_on_shutdown = mocker.patch.object(EventsPublisher, "on_shutdown")
 
     identity = Identity.load_from_file(ziti_identity_file)
-    event_publisher = EventPublisher(
+    event_publisher = EventsPublisher(
         worker_id="my-worker-id",
         meta=identity.mrok,
     )
@@ -138,19 +138,19 @@ async def test_on_startup(
     m_zmq_ctx.socket.return_value = m_publisher
     m_zmq_ctx_ctor = mocker.MagicMock()
     m_zmq_ctx_ctor.return_value = m_zmq_ctx
-    mocker.patch("mrok.proxy.event_publisher.zmq.asyncio.Context", m_zmq_ctx_ctor)
+    mocker.patch("mrok.proxy.events.zmq.asyncio.Context", m_zmq_ctx_ctor)
 
     m_metrics = mocker.MagicMock()
     m_metricscollector_ctor = mocker.patch(
-        "mrok.proxy.event_publisher.MetricsCollector", return_value=m_metrics
+        "mrok.proxy.events.MetricsCollector", return_value=m_metrics
     )
-    m_publish_metrics_event = mocker.patch.object(EventPublisher, "publish_metrics_event")
+    m_publish_metrics_event = mocker.patch.object(EventsPublisher, "publish_metrics_event")
 
     identity = Identity.load_from_file(ziti_identity_file)
-    event_publisher = EventPublisher(
+    event_publisher = EventsPublisher(
         worker_id="my-worker-id",
         meta=identity.mrok,
-        event_publisher_port=8282,
+        events_publisher_port=8282,
     )
 
     await event_publisher.on_startup()
@@ -169,7 +169,7 @@ async def test_on_shutdown(
     ziti_identity_file: str,
 ):
     identity = Identity.load_from_file(ziti_identity_file)
-    event_publisher = EventPublisher(
+    event_publisher = EventsPublisher(
         worker_id="my-worker-id",
         meta=identity.mrok,
     )
