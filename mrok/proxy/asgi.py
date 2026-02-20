@@ -32,15 +32,15 @@ class ASGIAppWrapper:
     ) -> None:
         self.app = app
         self.lifespan = lifespan
-        self.middlware: list[Middleware] = []
-        self.middleare_stack: ASGIApp | None = None
+        self.middleware: list[Middleware] = []
+        self.middleware_stack: ASGIApp | None = None
 
     def add_middleware(self, cls: ASGIMiddleware[P], *args: P.args, **kwargs: P.kwargs):
-        self.middlware.insert(0, Middleware(cls, *args, **kwargs))
+        self.middleware.insert(0, Middleware(cls, *args, **kwargs))
 
     def build_middleware_stack(self):
         app = self.app
-        for cls, args, kwargs in reversed(self.middlware):
+        for cls, args, kwargs in reversed(self.middleware):
             app = cls(app, *args, **kwargs)
         return app
 
@@ -86,7 +86,7 @@ class ASGIAppWrapper:
             await send({"type": "lifespan.shutdown.complete"})
 
     async def __call__(self, scope: Scope, receive: ASGIReceive, send: ASGISend) -> None:
-        if self.middleare_stack is None:  # pragma: no branch
+        if self.middleware_stack is None:  # pragma: no branch
             self.middleware_stack = self.build_middleware_stack()
         if scope["type"] == "lifespan":
             scope["app"] = self
