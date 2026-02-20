@@ -166,6 +166,6 @@ async def test_invalid_key_or_token_error(
     mocker: MockerFixture,
     exc_type: type[Exception],
 ):
-    mocker.patch("mrok.controller.auth.backends.jwt.decode", side_effect=exc_type("bla"))
+    mocker.patch("mrok.authentication.backends.oidc.jwt.decode", side_effect=exc_type("bla"))
     resp = await api_client.get("/extensions")
     assert resp.status_code == 401

@@ -5,10 +5,13 @@ from typing import Any
 from gunicorn.app.base import BaseApplication
 from uvicorn_worker import UvicornWorker
 
+from mrok.authentication import HTTPAuthManager
 from mrok.conf import get_settings
 from mrok.frontend.app import FrontendProxyApp
+from mrok.frontend.asgi_auth_adapter import ASGIAuthenticationMiddleware
 from mrok.frontend.middleware import HealthCheckMiddleware
 from mrok.logging import get_logging_config
+from mrok.proxy.asgi import ASGIAppWrapper
 
 
 class MrokUvicornWorker(UvicornWorker):
@@ -43,13 +46,21 @@ def run(
     max_keepalive_connections: int | None,
     keepalive_expiry: float | None,
 ):
-    app = HealthCheckMiddleware(
-        FrontendProxyApp(
-            str(identity_file),
-            max_connections=max_connections,
-            max_keepalive_connections=max_keepalive_connections,
-            keepalive_expiry=keepalive_expiry,
-        )
+    settings = get_settings()
+    auth_manager = HTTPAuthManager(settings.controller.auth)
+
+    frontend_app = FrontendProxyApp(
+        str(identity_file),
+        max_connections=max_connections,
+        max_keepalive_connections=max_keepalive_connections,
+        keepalive_expiry=keepalive_expiry,
+    )
+    app = ASGIAppWrapper(frontend_app)
+    app.add_middleware(HealthCheckMiddleware)
+    app.add_middleware(
+        ASGIAuthenticationMiddleware,
+        auth_manager=auth_manager,
+        exclude_paths={"/healthcheck"},
     )
 
     options = {

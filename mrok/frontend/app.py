@@ -10,7 +10,7 @@ from mrok.frontend.utils import get_target_name, parse_accept_header
 from mrok.proxy.app import ProxyAppBase
 from mrok.proxy.backend import AIOZitiNetworkBackend
 from mrok.proxy.exceptions import InvalidTargetError
-from mrok.types.proxy import ASGISend, Scope
+from mrok.types.proxy import ASGIReceive, ASGISend, Scope
 
 ERROR_TEMPLATE_FORMATS = {
     "application/json": "json",
@@ -141,3 +141,9 @@ class FrontendProxyApp(ProxyAppBase):
             )
 
         return self._jinja_env_cache[template_dir]
+
+    async def __call__(self, scope: Scope, receive: ASGIReceive, send: ASGISend) -> None:
+        is_auth_enabled = get_settings().frontend.auth.enabled
+        if is_auth_enabled and scope.get("type") == "http" and "auth_identity" not in scope:
+            return await super().send_error_response(scope, send, 401, "Unauthenticated")
+        return await super().__call__(scope, receive, send)
