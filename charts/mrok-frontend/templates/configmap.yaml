@@ -11,3 +11,5 @@ data:
   MROK_FRONTEND__DOMAIN: {{ .Values.frontendDomain | quote }}
   MROK_LOGGING__DEBUG: {{ .Values.loggingDebug | quote }}
   MROK_LOGGING__RICH: {{ .Values.loggingRich | quote }}
+  MROK_FRONTEND__ERRORS__502__HTML: {{ .Values.frontendErrors502Html | quote }}
+  MROK_FRONTEND__ERRORS__503__HTML: {{ .Values.frontendErrors503Html | quote }}

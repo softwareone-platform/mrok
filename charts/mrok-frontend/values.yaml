@@ -5,3 +5,5 @@ frontendDomain: <frontend-domain>
 loggingDebug: "false"
 loggingRich: "false"
 identityJson: <identity-json-file>
+frontendErrors502Html: /path/to/502.html
+frontendErrors503Html: /path/to/503.html
