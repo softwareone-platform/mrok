@@ -2,23 +2,24 @@ import logging
 
 import httpx
 import jwt
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi.security.http import HTTPBase
 
-from mrok.controller.auth.base import UNAUTHORIZED_EXCEPTION, AuthIdentity, BaseHTTPAuthBackend
-from mrok.controller.auth.registry import register_authentication_backend
+from mrok.authentication.base import AuthenticationError, AuthIdentity, BaseHTTPAuthBackend
+from mrok.authentication.credentials import BearerCredentials
+from mrok.authentication.registry import register_authentication_backend
 
 logger = logging.getLogger("mrok.controller")
+NOT_AUTHENTICATED = "UnAuthenticated."
 
 
 @register_authentication_backend("oidc")
 class OIDCJWTAuthenticationBackend(BaseHTTPAuthBackend):
-    def init_scheme(self) -> HTTPBase:
-        return HTTPBearer(auto_error=False)
-
-    async def authenticate(self, credentials: HTTPAuthorizationCredentials) -> AuthIdentity | None:
+    async def authenticate(self, authentication_header: str | None) -> AuthIdentity | None:
         async with httpx.AsyncClient() as client:
             try:
+                credentials = BearerCredentials.from_authorization_header(authentication_header)
+                if not credentials:
+                    raise AuthenticationError("Invalid Bearer token")
+                jwt_token = credentials.token
                 config_resp = await client.get(self.config.config_url)
                 config_resp.raise_for_status()
                 config = config_resp.json()
@@ -29,20 +30,20 @@ class OIDCJWTAuthenticationBackend(BaseHTTPAuthBackend):
                 jwks_resp.raise_for_status()
                 jwks = jwks_resp.json()
 
-                header = jwt.get_unverified_header(credentials.credentials)
+                header = jwt.get_unverified_header(jwt_token)
                 kid = header["kid"]
 
                 key_data = next((k for k in jwks["keys"] if k["kid"] == kid), None)
             except Exception:
                 logger.exception("Error fetching openid-config/jwks")
-                raise UNAUTHORIZED_EXCEPTION
+                raise AuthenticationError(NOT_AUTHENTICATED)
         if key_data is None:
             logger.error("Key ID not found in JWKS")
-            raise UNAUTHORIZED_EXCEPTION
 
+            raise AuthenticationError(NOT_AUTHENTICATED)
         try:
             payload = jwt.decode(
-                credentials.credentials,
+                jwt_token,
                 jwt.PyJWK(key_data),
                 algorithms=[header["alg"]],
                 issuer=issuer,
@@ -53,8 +54,8 @@ class OIDCJWTAuthenticationBackend(BaseHTTPAuthBackend):
                 metadata=payload,
             )
         except jwt.InvalidKeyError as e:
-            logger.error(f"Invalid jwt token: {e} ({credentials.credentials})")
-            raise UNAUTHORIZED_EXCEPTION
+            logger.error(f"Invalid jwt token: {e} ({authentication_header})")
+            raise AuthenticationError(NOT_AUTHENTICATED)
         except jwt.InvalidTokenError as e:
-            logger.error(f"Invalid jwt token: {e} ({credentials.credentials})")
-            raise UNAUTHORIZED_EXCEPTION
+            logger.error(f"Invalid jwt token: {e} ({authentication_header})")
+            raise AuthenticationError(NOT_AUTHENTICATED)

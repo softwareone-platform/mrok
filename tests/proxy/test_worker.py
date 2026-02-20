@@ -20,10 +20,10 @@ def test_setup_app(
     assert isinstance(app, ASGIAppWrapper)
     assert worker._event_publisher is not None
     assert app.lifespan == worker._event_publisher.lifespan
-    assert app.middlware[0].cls == MetricsMiddleware
-    assert app.middlware[0].args[0] == worker._event_publisher._metrics_collector
-    assert app.middlware[1].cls == CaptureMiddleware
-    assert app.middlware[1].args[0] == worker._event_publisher.publish_response_event
+    assert app.middleware[0].cls == MetricsMiddleware
+    assert app.middleware[0].args[0] == worker._event_publisher._metrics_collector
+    assert app.middleware[1].cls == CaptureMiddleware
+    assert app.middleware[1].args[0] == worker._event_publisher.publish_response_event
 
 
 def test_setup_app_events_disabled(
@@ -46,7 +46,7 @@ def test_setup_app_events_disabled(
     assert isinstance(app, ASGIAppWrapper)
     assert app.lifespan is None
 
-    assert app.middlware == []
+    assert app.middleware == []
 
 
 def test_run(

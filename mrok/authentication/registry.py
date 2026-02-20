@@ -1,4 +1,4 @@
-from mrok.controller.auth.base import BaseHTTPAuthBackend
+from mrok.authentication.base import BaseHTTPAuthBackend
 
 BACKEND_REGISTRY: dict[str, type[BaseHTTPAuthBackend]] = {}
 
