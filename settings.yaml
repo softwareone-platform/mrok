@@ -44,6 +44,6 @@ identifiers:
     example: 'EXT-2000-1000'
 
   instance:
-    regex: '(?i)INS-\d{4}-\d{4}-\d{4}'
-    format: 'INS-xxxx-yyyy-CIAO'
+    regex: '(?i)INS-\d{4}-\d{4}-\d{4}(?:-\d{4})?'
+    format: 'INS-xxxx-yyyy-zzzz'
     example: 'INS-2004-2000-3000'
