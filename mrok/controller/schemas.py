@@ -9,6 +9,7 @@ from pydantic import (
     computed_field,
 )
 
+from mrok.conf import get_settings
 from mrok.types.ziti import Tags
 
 
@@ -22,12 +23,12 @@ class IdSchema(BaseModel):
 
 
 class ExtensionIdSchema(BaseModel):
-    id: Annotated[str, Field(pattern=r"EXT-\d{4}-\d{4}")]
+    id: Annotated[str, Field(pattern=get_settings().identifiers.extension.regex)]
 
 
 # For instance
 class InstanceIdSchema(BaseModel):
-    id: Annotated[str, Field(pattern=r"INS-\d{4}-\d{4}-\d{4}")]
+    id: Annotated[str, Field(pattern=get_settings().identifiers.instance.regex)]
 
 
 class ExtensionBase(BaseSchema):
@@ -62,13 +63,20 @@ class InstanceRead(BaseSchema, IdSchema):
 
     @computed_field
     def instance(self) -> dict:
-        instance_id, _ = self.name.split(".", 1)
+        if "." not in self.name:
+            instance_id = self.name
+        else:
+            instance_id, _ = self.name.split(".", 1)
         return {"id": instance_id.upper()}
 
     @computed_field
     def extension(self) -> dict:
-        _, extension_id = self.name.split(".", 1)
-        return {"id": extension_id.upper()}
+        if "." not in self.name:
+            extension_id = self.tags["mrok-service"]  # type: ignore
+        else:
+            _, extension_id = self.name.split(".", 1)
+
+        return {"id": extension_id.upper()}  # type: ignore
 
     @computed_field
     def status(self) -> Literal["online", "offline"]:

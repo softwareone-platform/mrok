@@ -28,7 +28,10 @@ async def test_list_instances(
         url=f"{settings.ziti.base_urls.management}/edge/management/v1/identities?filter=tags.mrok-identity-type%3D%22instance%22&limit=10&offset=10",
         json={
             "meta": {"pagination": {"totalCount": 15, "limit": 10, "offset": 10}},
-            "data": [{"id": f"ins{i}", "name": "ins.svc"} for i in range(11, 16)],
+            "data": [
+                {"id": f"ins{i}", "name": "ins", "tags": {"mrok-service": "ext"}}
+                for i in range(11, 16)
+            ],
         },
     )
     response = await api_client.get("/instances?limit=10&offset=0")
