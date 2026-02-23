@@ -15,5 +15,6 @@ data:
   MROK_LOGGING__DEBUG: {{ .Values.loggingDebug | quote }}
   MROK_LOGGING__RICH: {{ .Values.loggingRich | quote }}
   MROK_CONTROLLER__AUTH__BACKENDS: {{ .Values.controllerAuthBackends | quote }}
-  MROK_CONTROLLER__AUTH__OIDC__OPENID_CONFIG_URL: {{ .Values.controllerAuthOIDCConfigUrl | quote }}
+  MROK_CONTROLLER__AUTH__OIDC__CONFIG_URL: {{ .Values.controllerAuthOIDCConfigUrl | quote }}
   MROK_CONTROLLER__AUTH__OIDC__AUDIENCE: {{ .Values.controllerAuthOIDCAudience | quote }}
+  MROK_CONTROLLER__AUTH__OIDC__SUBJECT_CLAIM: {{ .Values.controllerAuthOIDCSubjectClaim | quote }}

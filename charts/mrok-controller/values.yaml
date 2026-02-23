@@ -11,3 +11,4 @@ loggingRich: "false"
 controllerAuthBackends: "['oidc']"
 controllerAuthOIDCConfigUrl: "https://<openid-config-host>/<openid-config-path>"
 controllerAuthOIDCAudience: "http://<auth-audience-host>"
+controllerAuthOIDCSubjectClaim: sub
