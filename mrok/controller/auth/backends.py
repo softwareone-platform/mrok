@@ -49,7 +49,7 @@ class OIDCJWTAuthenticationBackend(BaseHTTPAuthBackend):
                 audience=self.config.audience,
             )
             return AuthIdentity(
-                subject=payload["sub"],
+                subject=payload.get(self.config.subject_claim) or "",
                 metadata=payload,
             )
         except jwt.InvalidKeyError as e:

@@ -50,6 +50,7 @@ def settings_factory() -> SettingsFactory:
                 "oidc": {
                     "config_url": "http://example.com/openid-configuration",
                     "audience": "mrok-audience",
+                    "subject_claim": "sub",
                 },
             }
         if "pagination" not in controller:
