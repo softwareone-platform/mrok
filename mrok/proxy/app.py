@@ -133,7 +133,6 @@ class ProxyAppBase(abc.ABC):
         for k, v in scope_headers:
             if k.lower() not in HOP_BY_HOP_HEADERS:
                 headers.append((k, v))
-
         self._merge_x_forwarded(headers, scope)
 
         return headers

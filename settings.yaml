@@ -35,6 +35,8 @@ controller:
       config_url: https://example.com/openid-configuration
       audience: my-audience
       subject_claim: sub
+    jwt:
+      audience: my-audience
   pagination:
     limit: 50
 

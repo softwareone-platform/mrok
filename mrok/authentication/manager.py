@@ -1,8 +1,8 @@
 from dynaconf.utils.boxing import DynaBox
-from fastapi import Request
 
-from mrok.controller.auth.base import UNAUTHORIZED_EXCEPTION, AuthIdentity, BaseHTTPAuthBackend
-from mrok.controller.auth.registry import get_authentication_backend
+from mrok.authentication.base import AuthIdentity, BaseHTTPAuthBackend
+from mrok.authentication.registry import get_authentication_backend
+from mrok.types.proxy import Scope
 
 
 class HTTPAuthManager:
@@ -22,10 +22,12 @@ class HTTPAuthManager:
             specific_config = self.auth_settings.get(key, {})
             self.active_backends.append(backend_cls(specific_config))
 
-    async def __call__(self, request: Request) -> AuthIdentity:
+    async def __call__(self, scope: Scope) -> AuthIdentity | None:
         for backend in self.active_backends:
-            identity = await backend(request)
+            credentials = backend.get_credentials(scope)
+            if not credentials:
+                continue
+            identity = await backend.authenticate(credentials=credentials)
             if identity:
                 return identity
-
-        raise UNAUTHORIZED_EXCEPTION
+        return None

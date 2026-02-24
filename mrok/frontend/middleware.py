@@ -1,5 +1,6 @@
 import json
 
+from mrok.authentication import HTTPAuthManager
 from mrok.frontend.utils import get_target_name
 from mrok.types.proxy import ASGIApp, ASGIReceive, ASGISend, Scope
 
@@ -33,3 +34,15 @@ class HealthCheckMiddleware:
                 return
 
         await self.app(scope, receive, send)
+
+
+class ASGIAuthenticationMiddleware:
+    def __init__(self, app, auth_manager: HTTPAuthManager):
+        self.app = app
+        self.auth_manager = auth_manager
+
+    async def __call__(self, scope, receive, send):
+        identity = await self.auth_manager(scope)
+        if identity:
+            scope["identity"] = identity
+        return await self.app(scope, receive, send)
