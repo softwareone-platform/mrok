@@ -44,6 +44,15 @@ def register(app: typer.Typer) -> None:
                 show_default=True,
             ),
         ] = default_workers,
+        reload: Annotated[
+            bool,
+            typer.Option(
+                "--reload",
+                "-r",
+                help="Enable autoreload",
+                show_default=True,
+            ),
+        ] = False,
         max_connections: Annotated[
             int,
             typer.Option(
@@ -85,6 +94,7 @@ def register(app: typer.Typer) -> None:
             host,
             port,
             workers,
+            reload,
             max_connections=max_connections,
             max_keepalive_connections=max_keepalive_connections,
             keepalive_expiry=keepalive_expiry,

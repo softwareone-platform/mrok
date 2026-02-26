@@ -1,16 +1,14 @@
-from collections.abc import Callable
 from typing import Annotated, Any
 
 import typer
 from gunicorn.app.base import BaseApplication
 
 from mrok.cli.utils import number_of_workers
-from mrok.controller.app import app as asgi_app
 from mrok.logging import get_logging_config
 
 
 class StandaloneApplication(BaseApplication):  # pragma: no cover
-    def __init__(self, application: Callable, options: dict[str, Any] | None = None):
+    def __init__(self, application: str, options: dict[str, Any] | None = None):
         self.options = options or {}
         self.application = application
         super().__init__()
@@ -65,7 +63,7 @@ def register(app: typer.Typer) -> None:
         dev: Annotated[
             bool,
             typer.Option(
-                "--server_reload",
+                "--reload",
                 "-r",
                 help="Enable server auto-reload. Default: False",
                 show_default=True,
@@ -80,4 +78,4 @@ def register(app: typer.Typer) -> None:
             "logconfig_dict": get_logging_config(ctx.obj),
             "reload": dev,
         }
-        StandaloneApplication(asgi_app, options).run()
+        StandaloneApplication("mrok.controller.app:app", options).run()

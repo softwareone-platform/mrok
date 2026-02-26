@@ -5,7 +5,7 @@ from rich.theme import Theme
 
 class MrokHighlighter(ReprHighlighter):
     prefixes = ("EXT", "ext", "INS", "ins")
-    highlights = ReprHighlighter.highlights + [
+    highlights = list(ReprHighlighter.highlights) + [
         rf"(?P<mrok_id>(?:{'|'.join(prefixes)})(?:-\d{{4}})*)"
     ]
 

@@ -4,7 +4,6 @@ from pytest_mock import MockerFixture
 from typer.testing import CliRunner
 
 from mrok.cli import app
-from mrok.controller.app import app as fastapi_app
 
 
 def test_run(mocker: MockerFixture):
@@ -20,7 +19,7 @@ def test_run(mocker: MockerFixture):
     result = runner.invoke(app, ["controller", "run"])
     assert result.exit_code == 0
     mocked_standalone_app.assert_called_once_with(
-        fastapi_app,
+        "mrok.controller.app:app",
         {
             "bind": "127.0.0.1:8000",
             "workers": (multiprocessing.cpu_count() * 2) + 1,
@@ -53,12 +52,12 @@ def test_run_with_options(mocker: MockerFixture):
             "8080",
             "--workers",
             "2",
-            "--server_reload",
+            "--reload",
         ],
     )
     assert result.exit_code == 0
     mocked_standalone_app.assert_called_once_with(
-        fastapi_app,
+        "mrok.controller.app:app",
         {
             "bind": "0.0.0.0:8080",
             "workers": 2,

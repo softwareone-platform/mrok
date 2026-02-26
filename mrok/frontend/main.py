@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -18,9 +17,8 @@ class MrokUvicornWorker(UvicornWorker):
 
 
 class StandaloneApplication(BaseApplication):  # pragma: no cover
-    def __init__(self, application: Callable, options: dict[str, Any] | None = None):
-        self.options = options or {}
-        self.application = application
+    def __init__(self, options: dict[str, Any] | None = None):
+        self.options = options
         super().__init__()
 
     def load_config(self):
@@ -33,7 +31,22 @@ class StandaloneApplication(BaseApplication):  # pragma: no cover
             self.cfg.set(key.lower(), value)
 
     def load(self):
-        return self.application
+        settings = get_settings()
+        auth_manager = HTTPAuthManager(settings.controller.auth)
+
+        frontend_app = FrontendProxyApp(
+            str(self.options["mrok"]["identity_file"]),
+            max_connections=self.options["mrok"]["max_connections"],
+            max_keepalive_connections=self.options["mrok"]["max_keepalive_connections"],
+            keepalive_expiry=self.options["mrok"]["keepalive_expiry"],
+        )
+        app = ASGIAppWrapper(frontend_app)
+        app.add_middleware(HealthCheckMiddleware)
+        app.add_middleware(
+            ASGIAuthenticationMiddleware,
+            auth_manager=auth_manager,
+        )
+        return app
 
 
 def run(
@@ -41,32 +54,23 @@ def run(
     host: str,
     port: int,
     workers: int,
+    reload: bool,
     max_connections: int | None,
     max_keepalive_connections: int | None,
     keepalive_expiry: float | None,
 ):
-    settings = get_settings()
-    auth_manager = HTTPAuthManager(settings.controller.auth)
-
-    frontend_app = FrontendProxyApp(
-        str(identity_file),
-        max_connections=max_connections,
-        max_keepalive_connections=max_keepalive_connections,
-        keepalive_expiry=keepalive_expiry,
-    )
-    app = ASGIAppWrapper(frontend_app)
-    app.add_middleware(HealthCheckMiddleware)
-    app.add_middleware(
-        ASGIAuthenticationMiddleware,
-        auth_manager=auth_manager,
-    )
-
     options = {
         "bind": f"{host}:{port}",
         "workers": workers,
         "worker_class": "mrok.frontend.main.MrokUvicornWorker",
         "logconfig_dict": get_logging_config(get_settings()),
-        "reload": False,
+        "reload": reload,
+        "mrok": {
+            "identity_file": str(identity_file),
+            "max_connections": max_connections,
+            "max_keepalive_connections": max_keepalive_connections,
+            "keepalive_expiry": keepalive_expiry,
+        },
     }
 
-    StandaloneApplication(app, options).run()
+    StandaloneApplication(options).run()

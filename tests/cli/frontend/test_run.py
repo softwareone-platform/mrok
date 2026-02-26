@@ -19,6 +19,7 @@ def test_run(mocker: MockerFixture):
         "127.0.0.1",
         8000,
         (multiprocessing.cpu_count() * 2) + 1,
+        False,
         max_connections=1000,
         max_keepalive_connections=100,
         keepalive_expiry=300.0,
@@ -48,6 +49,7 @@ def test_run_with_options(mocker: MockerFixture):
             "11",
             "--max-pool-keepalive-expiry",
             "3.22",
+            "--reload",
         ],
     )
     assert result.exit_code == 0
@@ -56,6 +58,7 @@ def test_run_with_options(mocker: MockerFixture):
         "0.0.0.0",
         8080,
         2,
+        True,
         max_connections=312,
         max_keepalive_connections=11,
         keepalive_expiry=3.22,

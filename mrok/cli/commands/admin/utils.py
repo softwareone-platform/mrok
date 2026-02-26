@@ -26,7 +26,7 @@ def parse_tags(pairs: list[str] | None) -> Tags | None:
 
 
 def tags_to_filter(tags: list[str]) -> str:
-    parsed_tags = parse_tags(tags)
+    parsed_tags = parse_tags(tags) or {}
     return " and ".join([f'tags.{key}="{value}"' for key, value in parsed_tags.items()])
 
 
