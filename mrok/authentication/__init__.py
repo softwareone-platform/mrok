@@ -1,3 +1,4 @@
+from mrok.authentication.backends.jwt import JWTAuthenticationBackend  # noqa: F401
 from mrok.authentication.backends.oidc import OIDCJWTAuthenticationBackend  # noqa: F401
 from mrok.authentication.base import AuthIdentity, BaseHTTPAuthBackend
 from mrok.authentication.credentials import BearerCredentials, Credentials
