@@ -78,7 +78,7 @@ def test_run(
     )
     worker.run()
 
-    m_setup_logging.assert_called_once_with(settings)
+    m_setup_logging.assert_called_once_with(settings, logging_config=None)
     m_mrokconfig_ctor.assert_called_once_with(
         m_app,
         ziti_identity_file,

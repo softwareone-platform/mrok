@@ -31,6 +31,7 @@ class Worker:
         events_enabled: bool = True,
         events_publisher_port: int = 50000,
         events_metrics_collect_interval: float = 5.0,
+        logging_config: dict | None = None,
     ):
         self._worker_id = worker_id
         self._identity_file = identity_file
@@ -41,6 +42,7 @@ class Worker:
         self._server_timeout_keep_alive = server_timeout_keep_alive
         self._server_limit_concurrency = server_limit_concurrency
         self._server_limit_max_requests = server_limit_max_requests
+        self._logging_config = logging_config
 
         self._events_enabled = events_enabled
         self._event_publisher = (
@@ -65,7 +67,7 @@ class Worker:
         return app
 
     def run(self):
-        setup_logging(get_settings())
+        setup_logging(get_settings(), logging_config=self._logging_config)
         app = self.setup_app()
 
         config = BackendConfig(

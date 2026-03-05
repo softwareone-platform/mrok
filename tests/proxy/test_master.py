@@ -75,6 +75,7 @@ def test_start_uvicorn_worker_hook(
         server_timeout_keep_alive=5,
         server_limit_concurrency=None,
         server_limit_max_requests=None,
+        logging_config=None,
     )
     m_worker.run.assert_called_once()
 
@@ -165,6 +166,7 @@ def test_start_worker(mocker: MockerFixture):
             "events_metrics_collect_interval": 10,
             "events_enabled": True,
             "events_pub_port": 50000,
+            "logging_config": None,
         },
     )
 

@@ -17,6 +17,7 @@ class ZiticornAgent(MasterBase):
         events_publishers_port: int = 50000,
         events_subscribers_port: int = 5000,
         events_metrics_collect_interval: float = 5.0,
+        logging_config: dict | None = None,
     ):
         super().__init__(
             identity_file,
@@ -30,6 +31,7 @@ class ZiticornAgent(MasterBase):
             events_pub_port=events_publishers_port,
             events_sub_port=events_subscribers_port,
             events_metrics_collect_interval=events_metrics_collect_interval,
+            logging_config=logging_config,
         )
         self.app = app
 
@@ -50,6 +52,7 @@ def run(
     events_publishers_port: int = 50000,
     events_subscribers_port: int = 50001,
     events_metrics_collect_interval: float = 5.0,
+    logging_config: dict | None = None,
 ):
     master = ZiticornAgent(
         app,
@@ -64,5 +67,6 @@ def run(
         events_publishers_port=events_publishers_port,
         events_subscribers_port=events_subscribers_port,
         events_metrics_collect_interval=events_metrics_collect_interval,
+        logging_config=logging_config,
     )
     master.run()
