@@ -8,7 +8,7 @@ from mrok.authentication.credentials import BearerCredentials, Credentials
 from mrok.authentication.registry import register_authentication_backend
 from mrok.types.proxy import Scope
 
-logger = logging.getLogger("mrok.controller")
+logger = logging.getLogger("mrok.authentication")
 
 
 @register_authentication_backend("oidc")

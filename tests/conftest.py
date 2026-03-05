@@ -2,7 +2,7 @@ import asyncio
 import base64
 import json
 import tempfile
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,6 +18,13 @@ from pytest_httpx import HTTPXMock
 from mrok.conf import Settings, get_settings
 from mrok.types.proxy import ASGIReceive, ASGISend, Message
 from tests.types import ReceiveFactory, SendFactory, SettingsFactory, StatusEventFactory
+
+
+@pytest.fixture
+def settings(request, settings_factory):
+    if hasattr(request, "param"):
+        return request.param(settings_factory)
+    return settings_factory()
 
 
 @pytest.fixture(scope="session")
@@ -167,6 +174,16 @@ def jwt_token(jwt_signing_key: str) -> str:
 
 
 @pytest.fixture()
+def jwt_token_symmetric_key() -> str:
+    payload = {
+        "sub": "user123",
+        "aud": "mrok-audience",
+        "exp": datetime.now(UTC) + timedelta(minutes=30),
+    }
+    return jwt.encode(payload, "my_secret_key_for_testing_only12", algorithm="HS256")
+
+
+@pytest.fixture()
 def jwks_json() -> dict:
     return {
         "keys": [
@@ -196,13 +213,25 @@ def openid_config() -> dict:
 
 
 @pytest.fixture()
-def fastapi_app(settings_factory: SettingsFactory) -> FastAPI:
-    settings = settings_factory()
-    from mrok.controller.app import setup_app
+def fastapi_app_factory(settings_factory: SettingsFactory) -> Callable[[Settings], FastAPI]:
+    def _fastapi_app(settings: Settings) -> FastAPI:
+        settings = settings or settings_factory()
+        from mrok.controller.app import setup_app
 
-    app = setup_app(settings)
-    app.dependency_overrides[get_settings] = lambda: settings
-    return app
+        app = setup_app(settings)
+        app.dependency_overrides[get_settings] = lambda: settings
+        return app
+
+    return _fastapi_app
+
+
+@pytest.fixture()
+def fastapi_app(
+    fastapi_app_factory: Callable[[Settings], FastAPI],
+    settings_factory: SettingsFactory,
+) -> FastAPI:
+    settings = settings_factory()
+    return fastapi_app_factory(settings)
 
 
 @pytest.fixture()
@@ -213,34 +242,74 @@ async def app_lifespan_manager(fastapi_app: FastAPI) -> AsyncGenerator[LifespanM
 
 @pytest.fixture
 async def api_client(
-    fastapi_app: FastAPI,
-    app_lifespan_manager: LifespanManager,
-    settings_factory: SettingsFactory,
+    fastapi_app_factory: Callable[[Settings], FastAPI],
+    settings: Settings,
     httpx_mock: HTTPXMock,
     openid_config: dict,
     jwks_json: dict,
     jwt_token: str,
+    app_lifespan_manager,
+    jwt_token_symmetric_key,
 ) -> AsyncGenerator[AsyncClient]:
-    settings = settings_factory()
-    httpx_mock.add_response(
-        method="GET",
-        url=settings.controller.auth.oidc.config_url,
-        json=openid_config,
-        is_reusable=True,
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="http://example.com/jwks.json",
-        json=jwks_json,
-        is_reusable=True,
-    )
+    if "oidc" in settings.controller.auth.backends:
+        httpx_mock.add_response(
+            method="GET",
+            url=settings.controller.auth.oidc.config_url,
+            json=openid_config,
+            is_reusable=True,
+            is_optional=True,
+        )
+        httpx_mock.add_response(
+            method="GET",
+            url="http://example.com/jwks.json",
+            json=jwks_json,
+            is_reusable=True,
+            is_optional=True,
+        )
+    app = fastapi_app_factory(settings)
 
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost/{app.root_path.removeprefix('/')}/",
         headers={"Authorization": f"Bearer {jwt_token}"},
     ) as client:
         yield client
+
+
+@pytest.fixture
+async def api_client_dual_backend(
+    fastapi_app_factory: Callable[[Settings], FastAPI],
+    settings_factory: SettingsFactory,
+    openid_config: dict,
+    jwks_json: dict,
+    jwt_token_symmetric_key: str,
+) -> AsyncGenerator[AsyncClient]:
+    controller = {
+        "auth": {
+            "backends": ["oidc", "jwt"],
+            "oidc": {
+                "config_url": "http://example.com/openid-configuration",
+                "audience": "mrok-audience",
+                "subject_claim": "sub",
+            },
+            "jwt": {
+                "secret": "my_secret_key_for_testing_only12",
+                "audience": "mrok-audience",
+            },
+        }
+    }
+
+    settings = settings_factory(controller=controller)
+
+    app = fastapi_app_factory(settings)
+
+    async with LifespanManager(app) as manager:
+        async with AsyncClient(
+            transport=ASGITransport(app=manager.app),
+            base_url="http://localhost/",
+            headers={"Authorization": f"Bearer {jwt_token_symmetric_key}"},
+        ) as client:
+            yield client
 
 
 @pytest.fixture
@@ -445,3 +514,16 @@ def ziti_frontend_error_template_json_file(
         f.write(ziti_frontend_error_template_json)
         f.seek(0)
         yield f.name
+
+
+@pytest.fixture
+def mock_empty_services(settings, httpx_mock):
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{settings.ziti.base_urls.management}/edge/management/v1/services?limit=50&offset=0",
+        json={
+            "meta": {"pagination": {"totalCount": 0, "limit": 50, "offset": 0}},
+            "data": [],
+        },
+        is_optional=True,
+    )

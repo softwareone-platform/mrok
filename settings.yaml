@@ -31,12 +31,13 @@ controller:
   auth:
     backends:
       - oidc
+      - jwt
     oidc:
       config_url: https://example.com/openid-configuration
-      audience: my-audience
+      audience: mrok
       subject_claim: sub
     jwt:
-      audience: my-audience
+      audience: mrok
   pagination:
     limit: 50
 
