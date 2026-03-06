@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich import print
 
 from mrok.cli.commands.admin.utils import parse_tags
 from mrok.cli.utils import (
