@@ -35,7 +35,7 @@ def test_start_events_router_hook(
 
     start_events_router(5000, 5101)
 
-    m_setup_logging.assert_called_once_with(settings)
+    m_setup_logging.assert_called_once_with(settings, logging_config=None)
     assert m_zmq_ctx.socket.mock_calls[0].args[0] == zmq.XSUB
     assert m_zmq_ctx.socket.mock_calls[1].args[0] == zmq.XPUB
     m_frontend.bind.assert_called_once_with("tcp://localhost:5000")
@@ -190,7 +190,9 @@ def test_start_events_router(mocker: MockerFixture):
         start_events_router,
         "function",
         (50000, 51000),
-        None,
+        {
+            "logging_config": None,
+        },
     )
 
 

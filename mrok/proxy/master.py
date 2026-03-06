@@ -69,8 +69,10 @@ def start_uvicorn_worker(
 MONITOR_THREAD_ERROR_DELAY = 3
 
 
-def start_events_router(events_pub_port: int, events_sub_port: int):
-    setup_logging(get_settings())
+def start_events_router(
+    events_pub_port: int, events_sub_port: int, logging_config: dict | None = None
+):
+    setup_logging(get_settings(), logging_config=logging_config)
     context = zmq.Context()
     frontend = context.socket(zmq.XSUB)
     frontend.bind(f"tcp://localhost:{events_pub_port}")
@@ -179,7 +181,9 @@ class MasterBase(ABC):
                 self.events_pub_port,
                 self.events_sub_port,
             ),
-            None,
+            {
+                "logging_config": self.logging_config,
+            },
         )
 
     def start_workers(self):
@@ -246,7 +250,7 @@ class MasterBase(ABC):
         return None
 
     def run(self):
-        setup_logging(get_settings())
+        setup_logging(get_settings(), logging_config=self.logging_config)
         logger.info(f"Master process started: {os.getpid()}")
         self.start()
         try:

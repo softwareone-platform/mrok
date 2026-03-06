@@ -1,6 +1,7 @@
 import asyncio
 
 import typer
+from rich import print
 
 from mrok.cli.utils import validate_extension_id, validate_instance_id
 from mrok.conf import Settings, get_settings

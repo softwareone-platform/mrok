@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from rich import print
 
 from mrok.cli.commands.admin.utils import parse_tags
 from mrok.conf import Settings
@@ -57,3 +58,9 @@ def register(app: typer.Typer) -> None:
         _, identity_json = asyncio.run(bootstrap(ctx.obj, forced, parse_tags(tags)))
         if identity_json:
             json.dump(identity_json, identity_file.open("w"))
+            print(
+                f"🍻 [green]Ziti bootstrapped, frontend identity saved to"
+                f" [bold]{identity_file}[/bold].[/green]"
+            )
+            return
+        print("[light_salmon3]Ziti already bootstrapped[/light_salmon3]")
