@@ -95,6 +95,8 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
     return logging_config
 
 
-def setup_logging(settings: Settings, cli_mode: bool = False) -> None:
-    logging_config = get_logging_config(settings, cli_mode)
+def setup_logging(
+    settings: Settings, cli_mode: bool = False, logging_config: dict | None = None
+) -> None:
+    logging_config = logging_config or get_logging_config(settings, cli_mode)
     logging.config.dictConfig(logging_config)

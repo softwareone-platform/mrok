@@ -46,5 +46,6 @@ def test_run(mocker: MockerFixture):
         events_publishers_port=4000,
         events_subscribers_port=5000,
         events_metrics_collect_interval=5.0,
+        logging_config=None,
     )
     mocked_agent.run.assert_called_once()

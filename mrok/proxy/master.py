@@ -43,6 +43,7 @@ def start_uvicorn_worker(
     events_enabled: bool = True,
     events_pub_port: int = 5000,
     events_metrics_collect_interval: float = 5.0,
+    logging_config: dict | None = None,
 ):
     import sys
 
@@ -60,6 +61,7 @@ def start_uvicorn_worker(
         events_enabled=events_enabled,
         events_publisher_port=events_pub_port,
         events_metrics_collect_interval=events_metrics_collect_interval,
+        logging_config=logging_config,
     )
     worker.run()
 
@@ -102,6 +104,7 @@ class MasterBase(ABC):
         events_pub_port: int = 50000,
         events_sub_port: int = 50001,
         events_metrics_collect_interval: float = 5.0,
+        logging_config: dict | None = None,
     ):
         self.identity_file = identity_file
         self.workers = server_workers
@@ -110,6 +113,7 @@ class MasterBase(ABC):
         self.events_pub_port = events_pub_port
         self.events_sub_port = events_sub_port
         self.events_metrics_collect_interval = events_metrics_collect_interval
+        self.logging_config = logging_config
         self.worker_identifiers = [str(uuid4()) for _ in range(server_workers)]
         self.worker_processes: dict[str, CombinedProcess] = {}
         self.zmq_pubsub_router_process = None
@@ -161,6 +165,7 @@ class MasterBase(ABC):
                 "events_enabled": self.events_enabled,
                 "events_pub_port": self.events_pub_port,
                 "events_metrics_collect_interval": self.events_metrics_collect_interval,
+                "logging_config": self.logging_config,
             },
         )
         logger.info(f"Worker {worker_id} [{p.pid}] started")
