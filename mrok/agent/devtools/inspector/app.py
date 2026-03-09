@@ -811,7 +811,8 @@ class InspectorApp(App):
     def action_toggle_metrics(self):
         self.query_one(RightPanel).toggle_class("-hidden")
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+    @on(DataTable.RowHighlighted)
+    def on_http_request_changed(self, event: DataTable.RowHighlighted) -> None:
         if not event.row_key:
             return
         response = self.requests[event.row_key]

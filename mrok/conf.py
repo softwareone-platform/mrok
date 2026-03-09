@@ -10,6 +10,9 @@ DEFAULT_SETTINGS = {
     "FRONTEND": {
         "identity": "public",
         "mode": "zrok",
+        "auth": {
+            "enabled": False,
+        },
     },
     "ZITI": {
         "ssl_verify": False,
