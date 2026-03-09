@@ -57,7 +57,7 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
             },
         },
         "root": {
-            "handlers": ["rich"],
+            "handlers": [handler],
             "level": "WARNING",
         },
         "loggers": {
@@ -88,6 +88,11 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "level": log_level,
                 "propagate": False,
                 "filters": ["healthcheck_filter"],
+            },
+            "httpcore": {
+                "handlers": [mrok_handler],
+                "level": log_level,
+                "propagate": False,
             },
         },
     }
