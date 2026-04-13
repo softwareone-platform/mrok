@@ -174,11 +174,10 @@ class ProxyAppBase(abc.ABC):
     def _format_path(self, scope: Scope) -> str:
         path = scope.get("raw_path")
         if path:
-            return path.decode()
+            path = path.decode()
         else:
             path = scope.get("path", "/")
         q = scope.get("query_string", b"")
-        path = scope.get("path", "/")
         path_qs = path
         if q:
             path_qs += "?" + q.decode()
