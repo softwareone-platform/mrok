@@ -32,8 +32,6 @@ class StandaloneApplication(BaseApplication):  # pragma: no cover
 
     def load(self):
         settings = get_settings()
-        auth_manager = HTTPAuthManager(settings.controller.auth)
-
         frontend_app = FrontendProxyApp(
             str(self.options["mrok"]["identity_file"]),
             max_connections=self.options["mrok"]["max_connections"],
@@ -42,10 +40,11 @@ class StandaloneApplication(BaseApplication):  # pragma: no cover
         )
         app = ASGIAppWrapper(frontend_app)
         app.add_middleware(HealthCheckMiddleware)
-        app.add_middleware(
-            ASGIAuthenticationMiddleware,
-            auth_manager=auth_manager,
-        )
+        if settings.frontend.auth.enabled:
+            app.add_middleware(
+                ASGIAuthenticationMiddleware,
+                auth_manager=HTTPAuthManager(settings.frontend.auth),
+            )
         return app
 
 
