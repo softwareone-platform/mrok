@@ -172,9 +172,11 @@ class ProxyAppBase(abc.ABC):
             headers[idx_proto] = (k, b"https")
 
     def _format_path(self, scope: Scope) -> str:
-        raw_path = scope.get("raw_path")
-        if raw_path:
-            return raw_path.decode()
+        path = scope.get("raw_path")
+        if path:
+            return path.decode()
+        else:
+            path = scope.get("path", "/")
         q = scope.get("query_string", b"")
         path = scope.get("path", "/")
         path_qs = path
