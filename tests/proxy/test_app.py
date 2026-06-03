@@ -135,7 +135,7 @@ async def test_app_success(
 
     req: Request = captured["req"]
 
-    assert bytes(req.url) == b"http://upstream/foo"
+    assert bytes(req.url) == b"http://upstream/foo?param=value"
     for header in req.headers:
         assert header[0] not in HOP_BY_HOP_HEADERS
 
