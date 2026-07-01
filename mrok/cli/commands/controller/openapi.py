@@ -1,5 +1,5 @@
 import json
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -9,7 +9,7 @@ import yaml
 from mrok.controller.openapi import generate_openapi_spec
 
 
-class OutputFormat(str, Enum):
+class OutputFormat(StrEnum):
     json = "json"
     yaml = "yaml"
 
