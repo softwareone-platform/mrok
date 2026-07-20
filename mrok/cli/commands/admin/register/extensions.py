@@ -24,6 +24,7 @@ def register(app: typer.Typer) -> None:
         ctx: typer.Context,
         extension_id: str = typer.Argument(
             ...,
+            metavar="EXTENSION_ID",
             callback=validate_extension_id,
             help=f"Extension ID in the format {settings.identifiers.extension.format}",
         ),
