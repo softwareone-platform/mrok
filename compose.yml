@@ -6,7 +6,7 @@ volumes:
     driver: local
   coredns-config:
     driver: local
-  mrok:
+  mrok-frontend:
     driver: local
 
 networks:
@@ -89,6 +89,9 @@ services:
       ZITI_CTRL_ADVERTISED_PORT: ${ZITI_CTRL_ADVERTISED_PORT:-1280}
       ZITI_USER: ${ZITI_USER:-admin}
       ZITI_PWD: ${ZITI_PWD:-}
+      ZITI_BOOTSTRAP_CLUSTER: true
+      ZITI_CLUSTER_NODE_NAME: ${ZITI_CTRL_SUBDOMAIN:-ziti-controller}
+      ZITI_CLUSTER_TRUST_DOMAIN: ${MROK_DOMAIN:-mrok.test}
     command: run config.yml
     ports:
       - ${ZITI_INTERFACE:-0.0.0.0}:${ZITI_CTRL_ADVERTISED_PORT:-1280}:${ZITI_CTRL_ADVERTISED_PORT:-1280}
@@ -104,8 +107,6 @@ services:
       interval: 3s
       timeout: 3s
       retries: 5
-      start_period: 15s
-
   ziti-router-enroll-jwt:
     image: openziti/ziti-cli:latest
     depends_on:
@@ -144,9 +145,10 @@ services:
     depends_on:
       chown-router:
         condition: service_completed_successfully
+      ziti-router-enroll-jwt:
+        condition: service_completed_successfully
       ziti-controller:
         condition: service_healthy
-
     user: ${ZIGGY_UID:-2171}
     volumes:
       - ziti-router:/ziti-router
@@ -216,7 +218,7 @@ services:
       ziti-controller:
         condition: service_healthy
     volumes:
-      - mrok:/app/identities
+      - mrok-frontend:/app/identities
     command: >
       bash -c "
         mrok admin bootstrap /app/identities/public.json

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from dynaconf.utils.boxing import DynaBox
+from dynaconf import DataDict
 from pydantic import BaseModel
 
 from mrok.authentication.credentials import Credentials
@@ -24,7 +24,7 @@ class BaseHTTPAuthBackend(ABC):
 
     """
 
-    def __init__(self, config: DynaBox):
+    def __init__(self, config: DataDict):
         self.config = config
 
     @abstractmethod

@@ -1,4 +1,4 @@
-from dynaconf.utils.boxing import DynaBox
+from dynaconf import DataDict
 
 from mrok.authentication.base import AuthIdentity, BaseHTTPAuthBackend
 from mrok.authentication.registry import get_authentication_backend
@@ -6,7 +6,7 @@ from mrok.types.proxy import Scope
 
 
 class HTTPAuthManager:
-    def __init__(self, auth_settings: DynaBox):
+    def __init__(self, auth_settings: DataDict):
         self.auth_settings = auth_settings
         self.active_backends: list[BaseHTTPAuthBackend] = []
         self._setup_backends()

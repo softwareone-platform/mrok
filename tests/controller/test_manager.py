@@ -1,13 +1,13 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from dynaconf.utils.boxing import DynaBox
+from dynaconf import DataDict
 
 from mrok.authentication import AuthIdentity, HTTPAuthManager
 
 
 def test_setup_backends_raises_when_backend_not_registered(mocker):
-    settings = DynaBox({"backends": ["server_404"]})
+    settings = DataDict({"backends": ["server_404"]})
     mocker.patch(
         "mrok.authentication.manager.get_authentication_backend",
         return_value=None,
@@ -20,14 +20,14 @@ def test_setup_backends_raises_when_backend_not_registered(mocker):
 
 
 def test_setup_backends_with_no_backends():
-    settings = DynaBox({"backends": []})
+    settings = DataDict({"backends": []})
     response = HTTPAuthManager(settings)
     assert response.active_backends == []
 
 
 @pytest.mark.asyncio
 async def test_authenticate_with_at_least_one_backend(mocker):
-    settings = DynaBox({"backends": []})
+    settings = DataDict({"backends": []})
 
     manager = HTTPAuthManager(settings)
 
@@ -54,7 +54,7 @@ async def test_authenticate_with_at_least_one_backend(mocker):
 
 @pytest.mark.asyncio
 async def test_backends_do_not_authenticate(mocker):
-    settings = DynaBox({"backends": []})
+    settings = DataDict({"backends": []})
 
     manager = HTTPAuthManager(settings)
 
