@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM python:3.14
 
 # The uv installer requires curl (and certificates) to download the release archive
 RUN apt-get clean -y; \
