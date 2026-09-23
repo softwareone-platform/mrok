@@ -65,10 +65,9 @@ class ASGIAppWrapper:
 
     async def handle_lifespan(self, scope: Scope, receive: ASGIReceive, send: ASGISend) -> None:
         started = False
-        app: Any = scope.get("app")
         await receive()
         try:
-            async with self.merge_lifespan(app) as state:
+            async with self.merge_lifespan(self.app) as state:
                 if state:
                     if "state" not in scope:
                         raise RuntimeError('"state" is unsupported by the current ASGI Server.')
@@ -89,7 +88,7 @@ class ASGIAppWrapper:
         if self.middleware_stack is None:  # pragma: no branch
             self.middleware_stack = self.build_middleware_stack()
         if scope["type"] == "lifespan":
-            scope["app"] = self
+            scope["app"] = self.app
             await self.handle_lifespan(scope, receive, send)
             return
 

@@ -1,6 +1,8 @@
+import json
 from contextlib import asynccontextmanager
 
 import pytest
+from fastapi import FastAPI, Request
 from pytest_mock import MockerFixture
 
 from mrok.proxy.asgi import ASGIAppWrapper
@@ -42,7 +44,7 @@ async def test_wrapper_lifespan_stack(
 
     @asynccontextmanager
     async def inner_lifespan(app):
-        await m_inner_startup()
+        await m_inner_startup(app)
         yield
         await m_inner_shutdown()
 
@@ -51,7 +53,7 @@ async def test_wrapper_lifespan_stack(
 
     @asynccontextmanager
     async def outer_lifespan(app):
-        await m_outer_startup()
+        await m_outer_startup(app)
         yield {"outer_state": "a state"}
         await m_outer_shutdown()
 
@@ -72,9 +74,9 @@ async def test_wrapper_lifespan_stack(
         {"type": "lifespan.startup.complete"},
         {"type": "lifespan.shutdown.complete"},
     ]
-    m_inner_startup.assert_awaited_once()
+    m_inner_startup.assert_awaited_once_with(m_wrapped_app)
     m_inner_shutdown.assert_awaited_once()
-    m_outer_startup.assert_awaited_once()
+    m_outer_startup.assert_awaited_once_with(m_wrapped_app)
     m_outer_shutdown.assert_awaited_once()
 
 
@@ -88,7 +90,7 @@ async def test_wrapper_no_app_lifespan(
 
     @asynccontextmanager
     async def outer_lifespan(app):
-        await m_outer_startup()
+        await m_outer_startup(app)
         yield {"outer_state": "a state"}
         await m_outer_shutdown()
 
@@ -109,7 +111,7 @@ async def test_wrapper_no_app_lifespan(
         {"type": "lifespan.startup.complete"},
         {"type": "lifespan.shutdown.complete"},
     ]
-    m_outer_startup.assert_awaited_once()
+    m_outer_startup.assert_awaited_once_with(m_wrapped_app)
     m_outer_shutdown.assert_awaited_once()
 
 
@@ -206,3 +208,62 @@ async def test_wrapper_lifespan_state_unsupported(
         await wrapper({"type": "lifespan"}, receive, send)
 
     assert str(cv.value) == '"state" is unsupported by the current ASGI Server.'
+
+
+async def test_wrapper_fastapi_app_state(
+    mocker: MockerFixture,
+    receive_factory: ReceiveFactory,
+    send_factory: SendFactory,
+):
+    m_startup = mocker.AsyncMock()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        await m_startup()
+        app.state.answer = 42
+        yield
+
+    fastapi_app = FastAPI(lifespan=lifespan)
+
+    @fastapi_app.get("/answer")
+    async def get_answer(request: Request):
+        return {"answer": request.app.state.answer}
+
+    wrapper = ASGIAppWrapper(fastapi_app)
+
+    lifespan_sent: list[Message] = []
+    lifespan_receive = receive_factory(
+        [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
+    )
+    await wrapper(
+        {"type": "lifespan", "state": {}},
+        lifespan_receive,
+        send_factory(lifespan_sent),
+    )
+    assert lifespan_sent == [
+        {"type": "lifespan.startup.complete"},
+        {"type": "lifespan.shutdown.complete"},
+    ]
+    m_startup.assert_awaited_once()
+    assert fastapi_app.state.answer == 42
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/answer",
+        "raw_path": b"/answer",
+        "root_path": "",
+        "query_string": b"",
+        "headers": [(b"host", b"testserver")],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+        "state": {},
+    }
+    sent: list[Message] = []
+    await wrapper(scope, receive_factory(), send_factory(sent))
+
+    assert sent[0]["status"] == 200
+    assert json.loads(sent[1]["body"]) == {"answer": 42}
