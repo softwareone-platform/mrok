@@ -1,6 +1,7 @@
 import re
 
 from mrok.conf import get_settings
+from mrok.types.proxy import Scope
 
 
 def parse_accept_header(accept: str | None) -> list[str]:
@@ -79,5 +80,9 @@ def get_target_name(headers: dict[str, str]) -> str | None:
         re.fullmatch(settings.identifiers.extension.regex, target)
         or re.fullmatch(settings.identifiers.instance.regex, target)
     ):
-        return target
+        return target.lower()
     return None
+
+
+def get_headers(scope: Scope) -> dict[str, str]:
+    return {k.decode("latin-1"): v.decode("latin-1") for k, v in scope.get("headers", [])}
