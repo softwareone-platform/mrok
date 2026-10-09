@@ -23,11 +23,22 @@ class Lifespan(LifespanOn):
         self.logger = logging.getLogger("mrok.proxy")
 
 
+class AccessLoggerAdapter(logging.LoggerAdapter):
+    """Extends every access log with the extension id"""
+
+    def process(self, msg, kwargs):
+        kwargs["extra"] = {**self.extra, **kwargs.get("extra", {})}
+        return f"[{self.extra['extension']}] {msg}", kwargs
+
+
 class HttpToolsProtocol(UvHttpToolsProtocol):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, config, *args, **kwargs):
+        super().__init__(config, *args, **kwargs)
         self.logger = logging.getLogger("mrok.proxy")
-        self.access_logger = logging.getLogger("mrok.access")
+        self.access_logger = AccessLoggerAdapter(
+            logging.getLogger("mrok.access"),
+            {"extension": config.identity.mrok.extension},
+        )
         self.access_log = self.access_logger.hasHandlers()
 
 

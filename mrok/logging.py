@@ -1,12 +1,29 @@
+import contextvars
 import logging
 import logging.config
 
 from mrok.conf import Settings
 
+request_target: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "request_target", default=None
+)
+
 
 class HealthCheckFilter(logging.Filter):
     def filter(self, record):
         return "/healthcheck" not in record.getMessage()
+
+
+class TargetContextFilter(logging.Filter):
+    def filter(self, record):
+        if hasattr(record, "target"):
+            return True
+
+        target = request_target.get()
+        record.target = target or ""
+        if target:
+            record.msg = f"[{target}] {record.msg}"
+        return True
 
 
 def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
@@ -35,7 +52,10 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
         "filters": {
             "healthcheck_filter": {
                 "()": HealthCheckFilter,
-            }
+            },
+            "target_context_filter": {
+                "()": TargetContextFilter,
+            },
         },
         "handlers": {
             "console": {
@@ -76,7 +96,7 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "handlers": [handler],
                 "level": log_level,
                 "propagate": False,
-                "filters": ["healthcheck_filter"],
+                "filters": ["healthcheck_filter", "target_context_filter"],
             },
             "mrok": {
                 "handlers": [mrok_handler],
