@@ -3,6 +3,8 @@ import logging.config
 
 from mrok.conf import Settings
 
+ACCESS_LOG_FORMAT = "{asctime} {name} {levelname} (pid: {process}) [{request_target}] {message}"
+
 
 class HealthCheckFilter(logging.Filter):
     def filter(self, record):
@@ -12,6 +14,7 @@ class HealthCheckFilter(logging.Filter):
 def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
     log_level = "DEBUG" if settings.logging.debug else "INFO"
     handler = "rich" if settings.logging.rich else "console"
+    access_handler = "rich" if settings.logging.rich else "access"
 
     if cli_mode:
         mrok_handler = "cli"
@@ -31,11 +34,16 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "style": "{",
             },
             "plain": {"format": "%(message)s"},
+            "access": {
+                "format": ACCESS_LOG_FORMAT,
+                "style": "{",
+                "defaults": {"request_target": "-"},
+            },
         },
         "filters": {
             "healthcheck_filter": {
                 "()": HealthCheckFilter,
-            }
+            },
         },
         "handlers": {
             "console": {
@@ -55,6 +63,11 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "log_time_format": lambda x: x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
                 "rich_tracebacks": True,
             },
+            "access": {
+                "class": "logging.StreamHandler",
+                "formatter": "access",
+                "stream": "ext://sys.stderr",
+            },
         },
         "root": {
             "handlers": [handler],
@@ -62,7 +75,7 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
         },
         "loggers": {
             "gunicorn.access": {
-                "handlers": [handler],
+                "handlers": [access_handler],
                 "level": log_level,
                 "propagate": False,
                 "filters": ["healthcheck_filter"],
@@ -73,7 +86,7 @@ def get_logging_config(settings: Settings, cli_mode: bool = False) -> dict:
                 "propagate": False,
             },
             "uvicorn.access": {
-                "handlers": [handler],
+                "handlers": [access_handler],
                 "level": log_level,
                 "propagate": False,
                 "filters": ["healthcheck_filter"],

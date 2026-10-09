@@ -8,6 +8,7 @@ def test_run(mocker: MockerFixture):
         "mrok.frontend.main.get_logging_config",
         return_value={"logging": "config"},
     )
+    m_setup_factory = mocker.patch("mrok.frontend.main.setup_log_record_factory")
 
     mock_settings = mocker.MagicMock()
     mock_settings.controller.auth = {"backends": []}
@@ -32,3 +33,4 @@ def test_run(mocker: MockerFixture):
     assert m_standalone_app.mock_calls[0].args[0]["mrok"]["keepalive_expiry"] == 99.5
 
     m_app.run.assert_called_once()
+    m_setup_factory.assert_called_once()

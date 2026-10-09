@@ -7,7 +7,12 @@ from uvicorn_worker import UvicornWorker
 from mrok.authentication import HTTPAuthManager
 from mrok.conf import get_settings
 from mrok.frontend.app import FrontendProxyApp
-from mrok.frontend.middleware import ASGIAuthenticationMiddleware, HealthCheckMiddleware
+from mrok.frontend.logging import setup_log_record_factory
+from mrok.frontend.middleware import (
+    ASGIAuthenticationMiddleware,
+    HealthCheckMiddleware,
+    TargetContextMiddleware,
+)
 from mrok.logging import get_logging_config
 from mrok.proxy.asgi import ASGIAppWrapper
 
@@ -45,6 +50,7 @@ class StandaloneApplication(BaseApplication):  # pragma: no cover
                 ASGIAuthenticationMiddleware,
                 auth_manager=HTTPAuthManager(settings.frontend.auth),
             )
+        app.add_middleware(TargetContextMiddleware)
         return app
 
 
@@ -58,6 +64,8 @@ def run(
     max_keepalive_connections: int | None,
     keepalive_expiry: float | None,
 ):
+    setup_log_record_factory()
+
     options = {
         "bind": f"{host}:{port}",
         "workers": workers,
