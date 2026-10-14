@@ -22,11 +22,13 @@ def register(app: typer.Typer) -> None:
         ctx: typer.Context,
         extension_id: str = typer.Argument(
             ...,
+            metavar="EXTENSION_ID",
             callback=validate_extension_id,
             help=f"Extension ID in the format {settings.identifiers.extension.format}",
         ),
         instance_id: str = typer.Argument(
             ...,
+            metavar="INSTANCE_ID",
             callback=validate_instance_id,
             help=f"Instance ID in the format {settings.identifiers.instance.format}",
         ),
