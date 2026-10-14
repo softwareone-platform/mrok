@@ -6,7 +6,7 @@ from httpcore import AsyncConnectionPool
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from mrok.conf import get_settings
-from mrok.frontend.utils import get_target_name, parse_accept_header
+from mrok.frontend.utils import get_headers, get_target_name, parse_accept_header
 from mrok.proxy.app import ProxyAppBase
 from mrok.proxy.backend import AIOZitiNetworkBackend
 from mrok.proxy.exceptions import InvalidTargetError
@@ -54,13 +54,11 @@ class FrontendProxyApp(ProxyAppBase):
         )
 
     def get_upstream_base_url(self, scope: Scope) -> str:
-        target = get_target_name(
-            {k.decode("latin1"): v.decode("latin1") for k, v in scope.get("headers", {})}
-        )
+        target = get_target_name(get_headers(scope))
         if not target:
             raise InvalidTargetError()
 
-        return f"http://{target.lower()}"
+        return f"http://{target}"
 
     async def send_error_response(
         self,
@@ -70,9 +68,7 @@ class FrontendProxyApp(ProxyAppBase):
         body: str,
         headers: list[tuple[bytes, bytes]] | None = None,
     ):
-        request_headers = {
-            k.decode("latin1"): v.decode("latin1") for k, v in scope.get("headers", {})
-        }
+        request_headers = get_headers(scope)
         accept_header = request_headers.get("accept")
         if not (accept_header and str(http_status) in self._templates_by_error):
             return await super().send_error_response(scope, send, http_status, body)
@@ -113,7 +109,7 @@ class FrontendProxyApp(ProxyAppBase):
         return await template.render_async(context)
 
     def _extract_request_context(self, scope: Scope) -> dict[str, Any]:
-        headers = {k.decode("latin-1"): v.decode("latin-1") for k, v in scope.get("headers", [])}
+        headers = get_headers(scope)
 
         return {
             "method": scope.get("method"),
