@@ -122,7 +122,7 @@ jobs:
 
 
   dtrack:
-    uses: softwareone-platform/ops-template/.github/workflows/dependency-track-python-uv.yml@v1
+    uses: softwareone-platform/ops-template/.github/workflows/dependency-track-python-uv.yml@v2
     with:
       projectName: 'mrok'
     secrets:
