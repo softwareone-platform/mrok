@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # The uv installer requires curl (and certificates) to download the release archive
 RUN apt-get update; \
