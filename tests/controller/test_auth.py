@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 from pytest_httpx import HTTPXMock
 from pytest_mock import MockerFixture
 
+from mrok.controller import ROOT_PATH
 from tests.conftest import SettingsFactory
 
 
@@ -16,7 +17,7 @@ async def test_no_token(
 ):
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
     ) as client:
         response = await client.get("/extensions")
         assert response.status_code == 401
@@ -35,7 +36,7 @@ async def test_invalid_token(
 ):
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
         headers={"Authorization": auth_header},
     ) as client:
         response = await client.get("/extensions")
@@ -62,7 +63,7 @@ async def test_invalid_openid_config_url(
     )
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
     ) as client:
         response = await client.get("/extensions", headers={"Authorization": f"Bearer {jwt_token}"})
         assert response.status_code == 401
@@ -88,7 +89,7 @@ async def test_invalid_openid_config_data(
     )
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
     ) as client:
         response = await client.get("/extensions", headers={"Authorization": f"Bearer {jwt_token}"})
         assert response.status_code == 401
@@ -120,7 +121,7 @@ async def test_invalid_jwks_url(
     )
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
     ) as client:
         response = await client.get("/extensions", headers={"Authorization": f"Bearer {jwt_token}"})
         assert response.status_code == 401
@@ -148,7 +149,7 @@ async def test_invalid_jwks_data(
     httpx_mock.add_response(method="GET", url=openid_config["jwks_uri"], status_code=200, json={})
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
     ) as client:
         response = await client.get("/extensions", headers={"Authorization": f"Bearer {jwt_token}"})
         assert response.status_code == 401
@@ -178,7 +179,7 @@ async def test_jwks_key_not_found(
     )
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{fastapi_app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
     ) as client:
         response = await client.get("/extensions", headers={"Authorization": f"Bearer {jwt_token}"})
         assert response.status_code == 401

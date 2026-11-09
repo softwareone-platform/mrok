@@ -4,9 +4,11 @@ from functools import partial
 import fastapi_pagination
 from fastapi import Depends, FastAPI
 from fastapi.routing import APIRoute, APIRouter
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from mrok.authentication.manager import HTTPAuthManager
 from mrok.conf import Settings, get_settings
+from mrok.controller import ROOT_PATH
 from mrok.controller.dependencies.auth import build_fastapi_auth_dependencies
 from mrok.controller.openapi import generate_openapi_spec
 from mrok.controller.routes.extensions import router as extensions_router
@@ -25,6 +27,24 @@ tags_metadata = [
         "description": "Manage Extension Instances (identities).",
     },
 ]
+
+
+class RootPathMiddleware:
+    """Set the ASGI ``root_path`` for every request.
+
+    Replacement for the deprecated ``FastAPI(root_path=...)`` argument, with the
+    same behavior: routes are reachable both with and without the prefix, and
+    the OpenAPI schema / docs are generated with the prefix.
+    """
+
+    def __init__(self, app: ASGIApp, root_path: str) -> None:
+        self.app = app
+        self.root_path = root_path
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            scope["root_path"] = self.root_path
+        await self.app(scope, receive, send)
 
 
 def setup_custom_serialization(router: APIRouter):
@@ -46,8 +66,8 @@ def setup_app(settings: Settings):
         swagger_ui_parameters={"showExtensions": False, "showCommonExtensions": False},
         openapi_tags=tags_metadata,
         version="5.0.0",
-        root_path="/public/v1",
     )
+    app.add_middleware(RootPathMiddleware, root_path=ROOT_PATH)
     fastapi_pagination.add_pagination(app)
 
     setup_custom_serialization(extensions_router)
