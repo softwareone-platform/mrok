@@ -16,6 +16,7 @@ from httpx import ASGITransport, AsyncClient
 from pytest_httpx import HTTPXMock
 
 from mrok.conf import Settings, get_settings
+from mrok.controller import ROOT_PATH
 from mrok.types.proxy import ASGIReceive, ASGISend, Message
 from tests.types import ReceiveFactory, SendFactory, SettingsFactory, StatusEventFactory
 
@@ -242,7 +243,6 @@ async def app_lifespan_manager(fastapi_app: FastAPI) -> AsyncGenerator[LifespanM
 
 @pytest.fixture
 async def api_client(
-    fastapi_app_factory: Callable[[Settings], FastAPI],
     settings: Settings,
     httpx_mock: HTTPXMock,
     openid_config: dict,
@@ -266,11 +266,10 @@ async def api_client(
             is_reusable=True,
             is_optional=True,
         )
-    app = fastapi_app_factory(settings)
 
     async with AsyncClient(
         transport=ASGITransport(app=app_lifespan_manager.app),
-        base_url=f"http://localhost/{app.root_path.removeprefix('/')}/",
+        base_url=f"http://localhost{ROOT_PATH}/",
         headers={"Authorization": f"Bearer {jwt_token}"},
     ) as client:
         yield client

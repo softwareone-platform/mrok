@@ -8,7 +8,22 @@ RUN apt-get clean -y; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
+
+# Install oh my bash
+RUN bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)"
+
+# Install starship
+RUN curl -sS https://starship.rs/install.sh | sh -s -- --yes
+RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc
+
+# Install prek
+RUN curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/download/v0.4.1/prek-installer.sh | sh
+
+
 RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
+
+# Install Claude code
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Run the uv installer then remove it
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -38,9 +53,6 @@ RUN echo 'alias pip="uv pip"' >> ~/.bashrc
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
-
-
-
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

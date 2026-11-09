@@ -8,9 +8,9 @@ authors = [
 requires-python = ">=3.12,<4"
 dependencies = [
     "asn1crypto>=1.5.1,<2.0.0",
-    "cryptography>=49.0.0,<50.0.0",
+    "cryptography>=50.0.0,<51.0.0",
     "dynaconf>=3.2.12,<4.0.0",
-    "fastapi-pagination>=0.15.15,<0.16.0",
+    "fastapi-pagination>=0.16.2,<0.17.0",
     "fastapi[standard]>=0.136.3,<1",
     "gunicorn>=26.0.0,<27.0.0",
     "hdrhistogram>=0.10.3,<0.11.0",
@@ -71,6 +71,9 @@ build-backend = "hatchling.build"
 package = true
 preview = true
 add-bounds = "major"
+# tree-sitter 0.26.1 (transitive, via textual[syntax]) causes random segfaults
+# in the inspector TUI tests (TextArea syntax highlighting). Remove once fixed upstream.
+constraint-dependencies = ["tree-sitter!=0.26.1"]
 
 [tool.ruff]
 line-length = 100
